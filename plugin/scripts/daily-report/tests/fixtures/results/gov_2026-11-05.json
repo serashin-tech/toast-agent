@@ -1,0 +1,53 @@
+{
+  "format_version": "1",
+  "agent": "gov",
+  "run_date": "2026-11-05",
+  "generated_at": "2026-11-05T09:41:00+09:00",
+  "api_key": "SECRETKEY0123456789abcdef",
+  "sources": [
+    {"id": "bid", "label": "입찰공고", "status": "ok", "fetched": 40, "included": 4, "excluded": 36, "new_count": 3, "error": null, "last_success_at": "2026-11-05T09:02:00+09:00"},
+    {"id": "outsource_cglink", "label": "민간 외주(CGLink)", "status": "ok", "fetched": 2, "included": 2, "excluded": 0, "new_count": 0, "error": null, "last_success_at": "2026-11-05T09:05:00+09:00"},
+    {"id": "grant_kocca", "label": "한콘진", "status": "failed", "fetched": 0, "included": 0, "excluded": 0, "new_count": 0,
+     "error": {"kind": "rate_limit", "message": "호출 한도 초과 serviceKey=SECRETKEY0123456789abcdef"}, "last_success_at": "2026-11-04T09:03:00+09:00"},
+    {"id": "grant_bizinfo", "label": "중소기업 지원사업", "status": "ok", "fetched": 15, "included": 3, "excluded": 12, "new_count": 2, "error": null, "last_success_at": "2026-11-05T09:08:00+09:00"}
+  ],
+  "items": [
+    {"source": "bid", "kind": "bid", "id": "20261100001-00", "title": "AI 기반 3D 애니메이션 제작 용역", "posted_on": "2026-11-05", "deadline": "2026-11-09",
+     "url": "https://example.go.kr/bid/20261100001", "matched_keywords": ["애니메이션", "AI"], "summary": "AI 활용 3D 애니메이션 제작 용역 공고입니다.", "is_new": true,
+     "extra": {"agency": "한국콘텐츠진흥원", "demand_agency": null, "est_price": 150000000, "attachments": [{"name": "공고문.hwp", "url": "https://example.go.kr/a.hwp"}], "service_key": "SECRETKEY0123456789abcdef"}},
+    {"source": "bid", "kind": "bid", "id": "20261100002-00", "title": "실감콘텐츠 제작 지원 용역", "posted_on": "2026-11-04", "deadline": "2026-11-30",
+     "url": "https://example.go.kr/bid/20261100002", "matched_keywords": ["애니메이션"], "summary": null, "is_new": true,
+     "extra": {"agency": "서울특별시", "demand_agency": null, "est_price": 80000000, "attachments": []}},
+    {"source": "bid", "kind": "bid", "id": "20261100003-00", "title": "교육용 영상 제작 사업", "posted_on": "2026-11-05", "deadline": null,
+     "url": "https://example.go.kr/bid/20261100003", "matched_keywords": [], "summary": null, "is_new": true,
+     "extra": {"agency": "경기도교육청", "demand_agency": null, "est_price": null, "attachments": []}},
+    {"source": "bid", "kind": "bid", "id": "20261100004-00", "title": "홍보 영상 제작 용역", "posted_on": "2026-11-02", "deadline": "2026-11-08",
+     "url": "https://example.go.kr/bid/20261100004", "matched_keywords": ["영상"], "summary": null, "is_new": false,
+     "extra": {"agency": "부산광역시", "demand_agency": null, "est_price": 30000000, "attachments": []}},
+    {"source": "outsource_cglink", "kind": "outsource", "id": "CG-OLD", "title": "2D 애니메이션 외주 작업자 모집", "posted_on": "2026-11-03", "deadline": null,
+     "url": "https://cglink.com/5099000", "matched_keywords": [], "summary": null, "is_new": false,
+     "extra": {"poster": "가나다스튜디오"}},
+    {"source": "grant", "kind": "grant", "id": "GR-1", "title": "콘텐츠 AI 제작 지원사업", "posted_on": "2026-11-01", "deadline": "2026-11-07",
+     "url": "https://example.go.kr/grant/1", "matched_keywords": ["콘텐츠", "AI"], "summary": "AI 활용 콘텐츠 제작비를 지원합니다.", "is_new": true,
+     "extra": {"agency": "한국콘텐츠진흥원", "period_start": "2026-10-20", "period_end": "2026-11-07", "dday": 2, "category": "콘텐츠", "target": null, "contact": null, "origins": ["grant_bizinfo", "grant_kocca"]}},
+    {"source": "grant", "kind": "grant", "id": "GR-2", "title": "중소기업 영상 제작 바우처", "posted_on": "2026-11-04", "deadline": "2026-11-25",
+     "url": "https://example.go.kr/grant/2", "matched_keywords": ["영상"], "summary": null, "is_new": true,
+     "extra": {"agency": "중소벤처기업부", "period_start": "2026-11-04", "period_end": "2026-11-25", "dday": 20, "category": null, "target": null, "contact": null, "origins": ["grant_bizinfo"]}},
+    {"source": "grant", "kind": "grant", "id": "GR-3", "title": "스타트업 성장 지원", "posted_on": "2026-10-25", "deadline": "2026-11-06",
+     "url": "https://example.go.kr/grant/3", "matched_keywords": ["지원"], "summary": null, "is_new": false,
+     "extra": {"agency": "서울경제진흥원", "period_start": "2026-10-25", "period_end": "2026-11-06", "dday": 1, "category": null, "target": null, "contact": null, "origins": ["grant_bizinfo"]}}
+  ],
+  "eligibility": [
+    {"bid_id": "20261100001-00", "overall": "conditional", "reason": "참가자격은 충족하나 평가방식 확인이 필요합니다.",
+     "disclaimer": "최종 판단은 대표가 합니다.", "unreadable_files": [{"name": "붙임.zip", "url": "https://example.go.kr/z.zip"}],
+     "requirements": [
+       {"category": "참가자격", "text": "영상물 제작업 등록업체", "verdict": "met", "profile_item": "업종", "evidence": {"quote": "영상물 제작업 등록업체일 것", "location": "공고문 3쪽 2항"}},
+       {"category": "예산", "text": "추정가격 1.5억 원", "verdict": "needs_check", "profile_item": null, "evidence": {"quote": "추정가격 150,000,000원", "location": "공고문 1쪽"}},
+       {"category": "평가방식", "text": "협상에 의한 계약", "verdict": "unmet", "profile_item": "실적", "evidence": {"quote": "유사 실적 3건 이상", "location": "공고문 5쪽"}}
+     ]},
+    {"bid_id": "20261100002-00", "overall": "extract_only", "reason": "프로필이 없어 요건만 추출했습니다.",
+     "disclaimer": "최종 판단은 대표가 합니다.", "unreadable_files": [],
+     "requirements": [{"category": "제출마감", "text": "11월 30일 18시까지", "verdict": "extract_only", "profile_item": null, "evidence": {"quote": "11월 30일 18시 마감", "location": "공고문 1쪽"}}]}
+  ],
+  "settings": {"fallback_used": false, "fallback_reason": null, "files": ["bid_filter.md"]}
+}

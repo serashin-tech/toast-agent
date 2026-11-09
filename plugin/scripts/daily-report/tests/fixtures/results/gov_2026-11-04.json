@@ -1,0 +1,10 @@
+{
+  "format_version": "1", "agent": "gov", "run_date": "2026-11-04", "generated_at": "2026-11-04T09:40:00+09:00",
+  "sources": [
+    {"id": "bid", "label": "입찰공고", "status": "ok", "fetched": 35, "included": 3, "excluded": 30, "new_count": 1, "error": null, "last_success_at": "2026-11-04T09:02:00+09:00"},
+    {"id": "outsource_cglink", "label": "민간 외주(CGLink)", "status": "ok", "fetched": 2, "included": 2, "excluded": 0, "new_count": 0, "error": null, "last_success_at": "2026-11-04T09:05:00+09:00"},
+    {"id": "grant_kocca", "label": "한콘진", "status": "ok", "fetched": 6, "included": 1, "excluded": 5, "new_count": 0, "error": null, "last_success_at": "2026-11-04T09:03:00+09:00"},
+    {"id": "grant_bizinfo", "label": "중소기업 지원사업", "status": "ok", "fetched": 12, "included": 2, "excluded": 10, "new_count": 0, "error": null, "last_success_at": "2026-11-04T09:08:00+09:00"}
+  ],
+  "items": [], "eligibility": [], "settings": {"fallback_used": false, "fallback_reason": null, "files": []}
+}

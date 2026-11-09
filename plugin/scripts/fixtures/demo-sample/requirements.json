@@ -1,0 +1,12 @@
+{
+  "bid_id": "R26BK999",
+  "unreadable_files": [],
+  "requirements": [
+    {"category": "참가자격", "text": "애니메이션 제작 관련 업종으로 나라장터 등록", "kind": "업종등록", "params": {"업종": "애니메이션"},
+     "evidence": {"quote": "애니메이션 제작 관련 업종으로 나라장터에 등록한 자", "location": "공고문 2쪽 3-1항"}},
+    {"category": "참가자격", "text": "전북특별자치도 본사", "kind": "소재지", "params": {"지역": "전북특별자치도"},
+     "evidence": {"quote": "공고일 현재 전북특별자치도에 본사를 둔 업체", "location": "공고문 2쪽 3-2항"}},
+    {"category": "참가자격", "text": "중소기업 확인서 보유", "kind": "중소기업확인", "params": {},
+     "evidence": {"quote": "「중소기업기본법」에 따른 중소기업 확인서를 보유한 자", "location": "공고문 2쪽 3-3항"}}
+  ]
+}

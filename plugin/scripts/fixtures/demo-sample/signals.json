@@ -1,0 +1,22 @@
+{
+  "bid_id": "R26BK999",
+  "title": "2027년 어린이 교통안전 홍보 애니메이션 제작 용역",
+  "unreadable_files": [],
+  "signals": [
+    {"text": "주인공 캐릭터 시안 2종 이상 제출", "deliverable": "character",
+     "evidence": {"quote": "제안사는 주인공 캐릭터 시안 2종 이상을 제안서에 포함하여야 한다.", "location": "제안요청서 8쪽 3항"}},
+    {"text": "키비주얼 1종 제시", "deliverable": "screen",
+     "evidence": {"quote": "제안사는 애니메이션의 분위기를 보여 주는 키비주얼 1종을 제시하여야 한다.", "location": "제안요청서 8쪽 3항"}}
+  ],
+  "scoring": [
+    {"item": "캐릭터·디자인 제안의 창의성", "points": 15, "evidence": {"quote": "캐릭터·디자인 제안의 창의성 | 15", "location": "제안요청서 12쪽 평가표"}},
+    {"item": "발표", "points": 10, "evidence": {"quote": "발표 | 10", "location": "제안요청서 12쪽 평가표"}}
+  ],
+  "constraints": {"format": null, "count": 2, "size": null, "due": "2026-12-01", "audience": "초등학교 저학년",
+                  "topic": "교통안전 수칙", "cast": "주인공 1종, 보조 캐릭터 2종"},
+  "ai_use_notes": [
+    {"text": "생성형 AI 활용 시 범위와 도구를 명시하고 저작권 문제가 없음을 보증",
+     "evidence": {"quote": "생성형 AI를 활용한 경우 활용 범위와 도구를 제안서에 명시하여야 하며", "location": "제안요청서 14쪽 9항"}}
+  ],
+  "style_refs": []
+}
