@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .demo_brief import build_brief
 from .eligibility import build_eligibility
+from .quotes import load_source, mark
 from .runner import run
 
 # 기본 경로는 현재 폴더(대표 PC의 작업 폴더) 기준이다. 코드는 플러그인 안에 있어도 된다(H11, H12).
@@ -60,10 +61,17 @@ def main(argv=None, transport=None, environ=None, now=None):
     b.add_argument("--eligibility", help="같은 공고의 제안 조건 검토 결과(eligibility 명령의 출력)")
     b.add_argument("--settings", default=DEFAULT_SETTINGS)
     b.add_argument("--out", help="브리프를 쓸 파일(없으면 표준출력). 보통 drafts/<공고번호>/brief.json")
+    for p in (e, b):
+        p.add_argument("--source-text", help="첨부를 텍스트로 바꾼 폴더(.md·.txt). 주면 원문에 없는 인용은 확인필요가 된다")
     a = ap.parse_args(argv)
 
-    if a.cmd == "brief":
+    data = None
+    if a.cmd in ("brief", "eligibility"):
         data = json.loads(Path(a.input).read_text(encoding="utf-8"))
+        if a.source_text:
+            mark(data, load_source(a.source_text))
+
+    if a.cmd == "brief":
         elig = json.loads(Path(a.eligibility).read_text(encoding="utf-8")) if a.eligibility else None
         text = json.dumps(build_brief(data, elig, Path(a.settings) / "demo-criteria.md"), ensure_ascii=False, indent=2)
         if a.out:
@@ -74,7 +82,6 @@ def main(argv=None, transport=None, environ=None, now=None):
         return 0
 
     if a.cmd == "eligibility":
-        data = json.loads(Path(a.input).read_text(encoding="utf-8"))
         entry = build_eligibility(data, Path(a.settings) / "company-profile.md")
         text = json.dumps(entry, ensure_ascii=False, indent=2)
         if a.merge_into:

@@ -127,7 +127,7 @@ def _judge(req, profile):
     kind = req.get("kind")
     item = PROFILE_ITEM.get(kind)
     ev = req.get("evidence") or {}
-    if not (ev.get("quote") and ev.get("location")) or item is None:
+    if not (ev.get("quote") and ev.get("location")) or ev.get("quote_found") is False or item is None:
         return "needs_check", item
     if kind == "실적":
         return _records(profile, req), item
@@ -148,8 +148,11 @@ def build_eligibility(extraction, profile_path):
         r = {**r, "params": r.get("params") or {}}
         verdict, item = ("extract_only", None) if profile is None else _judge(r, profile)
         ev = r.get("evidence") or {}
+        evidence = {"quote": ev.get("quote") or None, "location": ev.get("location") or None}
+        if "quote_found" in ev:
+            evidence["quote_found"] = ev["quote_found"]
         out.append({"category": r.get("category"), "text": r.get("text"), "verdict": verdict, "profile_item": item,
-                    "evidence": {"quote": ev.get("quote") or None, "location": ev.get("location") or None}})
+                    "evidence": evidence})
     v = [x["verdict"] for x in out]
     n = {k: v.count(k) for k in ("met", "unmet", "needs_check")}
     count = f"충족 {n['met']}건, 미충족 {n['unmet']}건, 확인필요 {n['needs_check']}건"

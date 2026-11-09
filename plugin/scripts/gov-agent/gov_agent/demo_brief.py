@@ -31,7 +31,8 @@ def load_words(path):
 def _verdict(signal, words):
     ev = signal.get("evidence") or {}
     quote, location = ev.get("quote") or "", ev.get("location") or ""
-    return "confirmed" if quote and location and any(w in quote for w in words) else "needs_check"
+    found = ev.get("quote_found") is not False
+    return "confirmed" if found and quote and location and any(w in quote for w in words) else "needs_check"
 
 
 def build_brief(extraction, eligibility, criteria_path):
@@ -40,8 +41,11 @@ def build_brief(extraction, eligibility, criteria_path):
     signals = []
     for s in extraction.get("signals") or []:
         ev = s.get("evidence") or {}
+        evidence = {"quote": ev.get("quote") or None, "location": ev.get("location") or None}
+        if "quote_found" in ev:
+            evidence["quote_found"] = ev["quote_found"]
         signals.append({"text": s.get("text"), "deliverable": s.get("deliverable"), "verdict": _verdict(s, words),
-                        "evidence": {"quote": ev.get("quote") or None, "location": ev.get("location") or None}})
+                        "evidence": evidence})
     unreadable = list(extraction.get("unreadable_files") or [])
 
     overall = (eligibility or {}).get("overall")
