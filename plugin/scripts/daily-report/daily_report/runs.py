@@ -46,15 +46,42 @@ def _on_time(run_date, published_at, deadline):
     return at <= datetime.combine(run_date, time.fromisoformat(deadline), tzinfo=at.tzinfo)
 
 
-def record_publish(runs_dir, date_s, at_iso, ok, deadline=DEADLINE):
-    """같은 날짜의 마지막 줄에 게시 결과를 기록한다. 그 날짜의 줄이 없으면 새로 만든다."""
+def write_shown(results_dir, date_s):
+    """그날 결과 파일에 실린 항목의 원장 키를 노출 기록(shown_<날짜>.json)으로 쓴다. 반환: 키 개수.
+
+    병합한 지원사업은 출처 키 둘을 모두 담는다(gov가 항목의 keys에 넣어 둔다). keys가 없는 옛 파일은 source:id를 쓴다.
+    """
+    results_dir = pathlib.Path(results_dir)
+    keys = []
+    for p in sorted(results_dir.glob(f"*_{date_s}.json")):
+        if p.name.startswith("shown_"):
+            continue
+        try:
+            items = json.loads(p.read_text(encoding="utf-8")).get("items") or []
+        except (OSError, ValueError, AttributeError):
+            continue
+        for it in items:
+            keys += it.get("keys") or [f"{it.get('source')}:{it.get('id')}"]
+    (results_dir / f"shown_{date_s}.json").write_text(json.dumps({"date": date_s, "keys": keys}, ensure_ascii=False),
+                                                      encoding="utf-8")
+    return len(keys)
+
+
+def record_publish(runs_dir, date_s, at_iso, ok, deadline=DEADLINE, results_dir=None):
+    """그날 daily 루틴의 마지막 줄에 전달(신규 알림 메일 발송) 결과를 기록한다(D31). 줄이 없으면 새로 만든다.
+
+    review 루틴의 줄에는 붙이지 않는다. 성공했고 results_dir가 있으면 노출 기록도 쓴다.
+    """
     records = load_runs(runs_dir)
-    idx = max((i for i, r in enumerate(records) if r.get("date") == date_s), default=None)
+    idx = max((i for i, r in enumerate(records)
+               if r.get("date") == date_s and r.get("routine", "daily") == "daily"), default=None)
     if idx is None:
-        records.append({"date": date_s, "report_ok": None})
+        records.append({"date": date_s, "routine": "daily", "report_ok": None})
         idx = len(records) - 1
     late = not _on_time(date.fromisoformat(date_s), at_iso, deadline)
     records[idx].update(published_ok=ok, published_at=at_iso, publish_late=late)
+    if ok and results_dir:
+        records[idx]["shown_count"] = write_shown(results_dir, date_s)
     _save(runs_dir, records)
 
 

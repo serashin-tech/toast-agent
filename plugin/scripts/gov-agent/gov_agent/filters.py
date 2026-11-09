@@ -2,6 +2,11 @@
 import re
 
 
+def grant_key(it):
+    """같은 지원사업을 알아보는 열쇠: 정규화한 제목(한글, 영문, 숫자만)과 접수 마감일(가정, 사용자 확인 전)."""
+    return re.sub(r"[^0-9a-z가-힣]", "", it["title"].lower()), it["deadline"]
+
+
 def _hits(text, words):
     t = (text or "").lower()
     return [w for w in words if w.lower() in t]
@@ -45,7 +50,7 @@ def merge_grants(kocca, bizinfo):
     가정(사용자 확인 전): 정규화한 제목(한글, 영문, 숫자만 남김)과 접수 마감일이 같으면 같은 사업이다.
     반환: [(합친 항목, 출처 목록, 구성원 [(소스, 항목)])]
     """
-    key = lambda it: (re.sub(r"[^0-9a-z가-힣]", "", it["title"].lower()), it["deadline"])
+    key = grant_key
     groups = {}
     for src, items in (("grant_bizinfo", bizinfo), ("grant_kocca", kocca)):
         for it in items:

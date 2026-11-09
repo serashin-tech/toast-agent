@@ -19,15 +19,19 @@ class BidCollection(Base):
         self.assertEqual(r["eligibility"], [])
         self.assertFalse(r["settings"]["fallback_used"])
 
-    def test_only_new_and_changed_are_collected_on_next_run(self):
+    def test_shown_items_are_not_listed_again_even_when_changed(self):
+        # 2026-11-09 규칙 변경(D13, IM-09): 보여 준 항목은 내용이 바뀌어도 다시 싣지 않고 건수만 센다.
+        import json
         a, b = fx.bid("A1", "애니메이션 제작"), fx.bid("B1", "홍보영상 제작")
         self.run_day(FakeTransport(ok_routes(bids=[a, b])))
+        self.out.joinpath("shown_2026-11-05.json").write_text(
+            json.dumps({"date": "2026-11-05", "keys": ["bid:A1", "bid:B1"]}), encoding="utf-8")
         b2 = fx.bid("B1", "홍보영상 제작", price=90000000)  # 변경
         c = fx.bid("C1", "콘텐츠 제작")  # 신규
         r = self.run_day(FakeTransport(ok_routes(bids=[a, b2, c])), date="2026-11-06")
         got = {i["id"]: i["is_new"] for i in self.items(r, "bid")}
-        self.assertEqual(got, {"B1": False, "C1": True})
-        self.assertEqual(self.src(r, "bid")["new_count"], 1)
+        self.assertEqual(got, {"C1": True})
+        self.assertEqual((self.src(r, "bid")["new_count"], self.src(r, "bid")["changed_shown_count"]), (1, 1))
 
     def test_duplicate_bid_numbers_appear_once(self):
         r = self.run_day(FakeTransport(ok_routes(bids=[fx.bid("A1", "x"), fx.bid("A1", "x")])))

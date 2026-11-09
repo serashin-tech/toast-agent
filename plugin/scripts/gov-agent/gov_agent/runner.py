@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from . import settings as st
-from .filters import filter_bid, filter_grant, merge_grants
+from .filters import filter_bid, filter_grant, grant_key, merge_grants
 from .sources import ALL
 from .sources import _common as c
 
@@ -26,9 +26,29 @@ def _iso(d):
 def _load_state(path):
     try:
         s = json.loads(Path(path).read_text(encoding="utf-8"))
-        return {"sources": s.get("sources", {}), "seen": s.get("seen", {}), "calls": s.get("calls", {})}
+        return {"sources": s.get("sources", {}), "calls": s.get("calls", {})}
     except (OSError, ValueError):
-        return {"sources": {}, "seen": {}, "calls": {}}
+        return {"sources": {}, "calls": {}}
+
+
+def _load_ledger(state_dir, out_dir):
+    """로컬 원장(IM-09)을 읽고, 결과 폴더의 노출 기록(shown_*.json)으로 첫 노출일을 채운다.
+
+    이미 채운 첫 노출일은 바꾸지 않으므로 같은 노출 기록을 여러 번 읽어도 결과가 같다. 원장에 없는 키는 무시한다.
+    """
+    try:
+        ledger = json.loads((state_dir / "ledger.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        ledger = {}
+    for p in sorted(Path(out_dir).glob("shown_*.json")):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for k in data.get("keys") or []:
+            if k in ledger and not ledger[k].get("first_shown"):
+                ledger[k]["first_shown"] = data.get("date")
+    return ledger
 
 
 def _fetch(src, transport, key, state, env, now, run_date_s, call_budget):
@@ -62,7 +82,7 @@ def _fetch(src, transport, key, state, env, now, run_date_s, call_budget):
     if getattr(src, "LOCAL_INCREMENT", False) and floor:
         cands = [i for i in cands if not i["posted_on"] or i["posted_on"] >= floor.date()]
     return {"src": src, "status": status, "error": error, "fetched": len(raws), "cands": cands,
-            "since": since_s, "excluded": 0, "included": 0, "new": 0}
+            "since": since_s, "excluded": 0, "included": 0, "new": 0, "changed_shown": 0}
 
 
 def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=None, call_budget=900):
@@ -77,13 +97,20 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
 
     cfg, problems, files = st.load_all(settings_dir, state_dir / "last_good_settings")
     res = {s.ID: _fetch(s, transport, key, state, env, now, run_date_s, call_budget) for s in ALL}
-    seen = dict(state["seen"])
-    new_seen, items = {}, []
+    ledger = _load_ledger(state_dir, out_dir)
+    touched, items = {}, []
 
-    def fresh(source_id, it):
+    # 지원사업은 한콘진·중소기업 두 출처에 따로 올라와 날짜가 어긋날 수 있으므로, 같은 사업의 열쇠로도 노출을 본다.
+    shown_groups = {e["group"] for e in ledger.values() if e.get("group") and e.get("first_shown")}
+
+    def check(source_id, it, group=None):
+        """(이미 보여 줬는가, 보여 준 뒤 내용이 바뀌었는가). 노출 판정의 정본은 로컬 원장이다(D13)."""
         k = f"{source_id}:{it['id']}"
-        new_seen[k] = _fp(it)
-        return seen.get(k) != new_seen[k], k not in seen
+        fp = _fp(it)
+        touched[k] = (source_id, fp, group)
+        e = ledger.get(k) or {}
+        was_shown = bool(e.get("first_shown")) or (group is not None and group in shown_groups)
+        return was_shown, was_shown and e.get("fp") not in (None, fp)
 
     r = res["bid"]
     for it in r["cands"]:
@@ -91,23 +118,26 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
         if not ok:
             r["excluded"] += 1
             continue
-        is_changed, is_new = fresh("bid", it)
-        if not is_changed:
+        was_shown, changed = check("bid", it)
+        if was_shown:
+            r["changed_shown"] += changed
             continue
         r["included"] += 1
-        r["new"] += is_new
-        items.append(_item("bid", "bid", it, matched, is_new, {
+        r["new"] += 1
+        items.append(_item("bid", "bid", it, matched, [f"bid:{it['id']}"], {
             "agency": it["agency"], "demand_agency": it["demand_agency"], "est_price": it["est_price"],
             "attachments": it["attachments"]}))
 
     r = res["outsource_cglink"]
     for it in r["cands"]:  # 한 달에 몇 건뿐이라 필터 없이 새 글을 모두 싣는다
-        is_changed, is_new = fresh("outsource_cglink", it)
-        if not is_changed:
+        was_shown, changed = check("outsource_cglink", it)
+        if was_shown:
+            r["changed_shown"] += changed
             continue
         r["included"] += 1
-        r["new"] += is_new
-        items.append(_item("outsource_cglink", "outsource", it, [], is_new, {"poster": it["poster"]}))
+        r["new"] += 1
+        items.append(_item("outsource_cglink", "outsource", it, [], [f"outsource_cglink:{it['id']}"],
+                           {"poster": it["poster"]}))
 
     passed = {}
     for sid in ("grant_kocca", "grant_bizinfo"):
@@ -120,16 +150,19 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
             else:
                 r["excluded"] += 1
     for main, origins, members in merge_grants(passed["grant_kocca"], passed["grant_bizinfo"]):
-        flags = [fresh(s, m) for s, m in members]
-        if not any(f[0] for f in flags):
+        group = "|".join(str(x) for x in grant_key(main))
+        flags = [check(s, m, group) for s, m in members]
+        if any(f[0] for f in flags):  # 출처 하나라도 보여 줬으면 보여 준 것으로 본다
+            for s in origins:
+                res[s]["changed_shown"] += any(f[1] for f in flags)
             continue
-        is_new = all(f[1] for f in flags)
         for s in origins:
             res[s]["included"] += 1
-            res[s]["new"] += is_new
+            res[s]["new"] += 1
         matched = sorted({w for _, m in members for w in m["_matched"]}, key=main["title"].lower().find)
         dday = (main["deadline"] - run_date_d).days if main["deadline"] else None
-        items.append(_item(origins[0] if len(origins) == 1 else "grant", "grant", main, matched, is_new, {
+        keys = [f"{s}:{m['id']}" for s, m in members]
+        items.append(_item(origins[0] if len(origins) == 1 else "grant", "grant", main, matched, keys, {
             "agency": main["agency"], "period_start": _iso(main["period_start"]),
             "period_end": _iso(main["deadline"]), "dday": dday, "category": main["category"],
             "target": main["target"], "contact": main["contact"], "origins": origins}))
@@ -140,10 +173,9 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
         ok = r["status"] == "ok"
         if ok:
             state["sources"][s.ID] = {"last_success_at": now.isoformat()}
-            state["seen"].update({k: v for k, v in new_seen.items() if k.startswith(s.ID + ":")})
         sources.append({"id": s.ID, "label": s.LABEL, "status": r["status"], "fetched": r["fetched"],
                         "included": r["included"], "excluded": r["excluded"], "new_count": r["new"],
-                        "error": r["error"],
+                        "changed_shown_count": r["changed_shown"], "error": r["error"],
                         "last_success_at": state["sources"].get(s.ID, {}).get("last_success_at")})
 
     result = {"format_version": FORMAT_VERSION, "agent": "gov", "run_date": run_date_s,
@@ -155,14 +187,24 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"gov_{run_date_s}.json"
     path.write_text(text, encoding="utf-8")
+    for k, (sid, fp, group) in touched.items():  # 정상 수집한 소스의 항목만 원장에 반영한다
+        if res[sid]["status"] != "ok":
+            continue
+        e = ledger.setdefault(k, {"first_seen": run_date_s, "last_changed": None, "first_shown": None, "fp": fp})
+        if group:
+            e["group"] = group
+        if e["fp"] != fp:
+            e["fp"], e["last_changed"] = fp, run_date_s
     state_dir.mkdir(parents=True, exist_ok=True)
     (state_dir / "state.json").write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
+    (state_dir / "ledger.json").write_text(json.dumps(ledger, ensure_ascii=False, indent=1), encoding="utf-8")
     if not problems:
         st.save_good(settings_dir, state_dir / "last_good_settings")
     return path
 
 
-def _item(source, kind, it, matched, is_new, extra):
+def _item(source, kind, it, matched, keys, extra):
+    """결과 파일의 항목 하나. 아직 보여 주지 않은 항목만 싣으므로 is_new는 늘 참이다(D13)."""
     return {"source": source, "kind": kind, "id": it["id"], "title": it["title"],
             "posted_on": _iso(it["posted_on"]), "deadline": _iso(it["deadline"]), "url": it["url"],
-            "matched_keywords": matched, "summary": None, "is_new": is_new, "extra": extra}
+            "matched_keywords": matched, "summary": None, "is_new": True, "keys": keys, "extra": extra}

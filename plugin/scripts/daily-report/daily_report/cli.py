@@ -43,7 +43,7 @@ def _build(args, now):
     (out / f"report-{args.date}.html").write_text(html, encoding="utf-8")
     if args.runs:
         runs.append_run(args.runs, {
-            "date": args.date, "started_at": started.isoformat(timespec="seconds"),
+            "date": args.date, "routine": args.routine, "started_at": started.isoformat(timespec="seconds"),
             "finished_at": now().isoformat(timespec="seconds"), "sources": runs.source_status(agents),
             "report_ok": True, "published_ok": None,
         })
@@ -60,11 +60,13 @@ def main(argv=None, now=None):
     b.add_argument("--out", required=True)
     b.add_argument("--settings")
     b.add_argument("--runs")
-    r = sub.add_parser("record-publish", help="게시 결과를 실행 기록에 적는다")
+    b.add_argument("--routine", choices=["daily", "review"], default="daily", help="실행 기록에 남길 루틴 종류")
+    r = sub.add_parser("record-publish", help="전달(신규 알림 메일 발송) 결과를 실행 기록에 적는다(D31)")
     r.add_argument("--runs", required=True)
     r.add_argument("--date", required=True)
-    r.add_argument("--at", required=True, help="게시 일시(ISO 8601)")
+    r.add_argument("--at", required=True, help="발송 일시(ISO 8601)")
     r.add_argument("--ok", required=True, choices=["true", "false"])
+    r.add_argument("--results", help="결과 폴더. 주면 성공한 날 노출 기록(shown_<날짜>.json)을 쓴다")
     a = sub.add_parser("arrival-rate", help="기간의 11시 도착률을 계산한다")
     a.add_argument("--runs", required=True)
     a.add_argument("--from", dest="start", required=True)
@@ -74,7 +76,7 @@ def main(argv=None, now=None):
     if args.cmd == "build":
         return _build(args, now)
     if args.cmd == "record-publish":
-        runs.record_publish(args.runs, args.date, args.at, args.ok == "true")
+        runs.record_publish(args.runs, args.date, args.at, args.ok == "true", results_dir=args.results)
         return 0
     x = runs.arrival_rate(runs.load_runs(args.runs), args.start, args.end, args.deadline)
     print(f"도착 {x['arrived']}/{x['days']}일 ({x['rate']:.1%}), 미실행 {x['not_run']}일, 지연 또는 실패 {x['late_or_failed']}일")

@@ -75,6 +75,56 @@ class RunLog(ReportCase):
         self.assertIs(self.lines()[0]["published_ok"], False)
 
 
+class ShownRecordAndRoutines(ReportCase):
+    """D31: 메일 발송에 성공한 날에만 노출 기록을 남긴다. 검토 #5: 도착 결과는 그날의 daily 줄에만 붙인다."""
+
+    def setUp(self):
+        super().setUp()
+        self.runs = self.tmp / "runs"
+
+    def lines(self):
+        return [json.loads(x) for x in (self.runs / "runs.jsonl").read_text(encoding="utf-8").splitlines()]
+
+    def publish(self, ok, results=True):
+        argv = ["record-publish", "--runs", str(self.runs), "--date", "2026-11-05",
+                "--at", "2026-11-05T10:58:00+09:00", "--ok", ok]
+        if results:
+            argv += ["--results", str(self.results)]
+        with contextlib.redirect_stdout(io.StringIO()):
+            return main(argv)
+
+    def test_successful_send_writes_shown_keys(self):
+        def mutate(d):
+            d["items"][0]["keys"] = ["grant_kocca:K1", "grant_bizinfo:P1"]
+        data = self.put_today(mutate)
+        self.build(runs=self.runs, now=clock(at(10, 40), at(10, 41)))
+        self.assertEqual(self.publish("true"), 0)
+        shown = json.loads((self.results / "shown_2026-11-05.json").read_text(encoding="utf-8"))
+        expected = ["grant_kocca:K1", "grant_bizinfo:P1"] + [f"{i['source']}:{i['id']}" for i in data["items"][1:]]
+        self.assertEqual(shown["date"], "2026-11-05")
+        self.assertEqual(sorted(shown["keys"]), sorted(expected))
+        self.assertEqual(self.lines()[0]["shown_count"], len(expected))
+
+    def test_failed_send_writes_no_shown_record(self):
+        self.put_today()
+        self.build(runs=self.runs, now=clock(at(10, 40), at(10, 41)))
+        self.publish("false")
+        self.assertFalse((self.results / "shown_2026-11-05.json").exists())
+
+    def test_arrival_attaches_to_the_daily_line_not_a_later_review_line(self):
+        self.put_today()
+        self.build(runs=self.runs, now=clock(at(10, 0), at(10, 1)))
+        argv = ["build", "--date", "2026-11-05", "--results", str(self.results), "--out", str(self.out),
+                "--runs", str(self.runs), "--routine", "review"]
+        with contextlib.redirect_stdout(io.StringIO()):
+            main(argv, now=clock(at(10, 30), at(10, 31)))
+        self.publish("true")
+        daily, review = self.lines()
+        self.assertEqual((daily["routine"], review["routine"]), ("daily", "review"))
+        self.assertIs(daily["published_ok"], True)
+        self.assertNotIn("published_ok", {k: v for k, v in review.items() if v is not None})
+
+
 class ArrivalRate(ReportCase):
     def rec(self, day, published_at=None, ok=True):
         return {"date": f"2026-11-0{day}", "report_ok": True, "published_ok": ok if published_at else None,
