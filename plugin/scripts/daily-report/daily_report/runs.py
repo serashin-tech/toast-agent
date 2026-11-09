@@ -94,7 +94,8 @@ def arrival_rate(runs, start, end, deadline=DEADLINE):
     start, end = _d(start), _d(end)
     by_day = {}
     for r in runs:
-        by_day.setdefault(r.get("date"), []).append(r)
+        if r.get("routine", "daily") == "daily":  # 30분 검토 루틴의 줄은 도착 판정에 쓰지 않는다
+            by_day.setdefault(r.get("date"), []).append(r)
     days = (end - start).days + 1
     arrived = not_run = 0
     for n in range(days):

@@ -1,6 +1,6 @@
 ---
 name: requirement-extractor
-description: 입찰공고 첨부를 텍스트로 바꾼 폴더를 읽어 참가자격 요건(requirements.json)과 시연 신호(signals.json)를 추출한다. 판정은 하지 않는다. review-requests와 make-demo 스킬이 공고마다 부른다.
+description: 입찰공고 첨부를 텍스트로 바꾼 폴더를 읽어 참가자격 요건(requirements.json)과 시연 신호(signals.json)를 추출한다. 판정은 하지 않는다. review-requests 스킬이 공고마다 부른다(make-demo는 그 결과인 brief.json을 쓴다).
 tools: Read, Grep, Glob, Write
 ---
 

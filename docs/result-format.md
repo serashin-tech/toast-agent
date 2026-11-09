@@ -29,7 +29,8 @@ gov-agent가 쓰고 daily-report가 읽는 날짜별 JSON 파일의 형식이다
 | `fetched` | 정수 | API에서 받은 건수 |
 | `included` | 정수 | 필터를 통과해 `items`에 들어간 건수 |
 | `excluded` | 정수 | 필터에서 제외된 건수 |
-| `new_count` | 정수 | `included` 중 오늘 처음 보는 건수 |
+| `new_count` | 정수 | `included` 중 아직 보여 주지 않은 건수. 2026-11-10부터 `included`와 같다(D13) |
+| `changed_shown_count` | 정수 | 이미 보여 준 항목 가운데 오늘 내용이 바뀐 건수. 이 항목은 `items`에 싣지 않는다(2026-11-10 추가, IM-09) |
 | `error` | 객체 또는 null | 실패일 때 `{"kind": ..., "message": ...}`. `kind`는 `auth`, `pending_approval`, `rate_limit`, `network`, `format` 중 하나. `message`에는 인증키를 넣지 않는다 |
 | `last_success_at` | 일시 또는 null | 이 소스가 마지막으로 성공한 시각 |
 
@@ -46,7 +47,8 @@ gov-agent가 쓰고 daily-report가 읽는 날짜별 JSON 파일의 형식이다
 | `url` | 문자열 | 원문 링크. 모든 항목에 있어야 하고 `http` 또는 `https`로 시작한다 |
 | `matched_keywords` | 문자열 배열 | 필터를 통과시킨 포함 키워드. 필터 미설정이면 빈 배열 |
 | `summary` | 문자열 또는 null | 에이전트가 쓴 한 줄 요약. 원문 인용이 아니다 |
-| `is_new` | 불리언 | 오늘 처음 보는 항목인지 |
+| `is_new` | 불리언 | 아직 보여 주지 않은 항목인지. 2026-11-10부터 gov는 아직 보여 주지 않은 항목만 싣으므로 늘 참이다(D13). 옛 파일에는 거짓인 항목이 있을 수 있다 |
+| `keys` | 문자열 배열 | 로컬 원장 키(`소스:식별자`). 병합한 지원사업은 출처 키 둘을 모두 담는다. 노출 기록(`shown_<날짜>.json`)이 이 키를 쓴다(2026-11-10 추가, IM-09) |
 | `extra` | 객체 | 종류별 고유 값(아래) |
 
 ### extra: `kind` = `bid`
@@ -107,6 +109,8 @@ requirements[]: `category`(참가자격, 계약방식, 평가방식, 예산, 제
 - **낙찰 항목 삭제(2026-11-09)**: 낙찰 수집과 경쟁사 대조를 기능에서 뺐다(구현 PRD D15). 결과 파일에 `award` 소스와 항목이 더는 나오지 않는다. 항목 종류가 줄기만 한 변경이므로 `format_version`은 올리지 않았다.
 - **지원사업의 `source`**: 두 소스가 병합된 사업은 `grant`, 한 소스에만 있는 사업은 그 소스 `id`(`grant_kocca` 또는 `grant_bizinfo`)이다. 읽는 쪽은 `kind`로 종류를 구분한다.
 - **`limit_near`의 `error`**: `kind`는 `rate_limit`으로 채운다.
+- **`keys`, `changed_shown_count` 추가와 `is_new` 뜻 변경(2026-11-10)**: 읽는 쪽은 모르는 필드를 무시하므로 `format_version`을 올리지 않았다. `is_new`의 뜻이 '오늘 처음 수집'에서 '아직 보여 주지 않음'으로 바뀌었다.
+- **노출 기록 `shown_<날짜>.json`(2026-11-10)**: 결과 폴더에 `{"date": 날짜, "keys": [원장 키…]}`로 둔다. `daily_report record-publish --ok true --results <결과 폴더>`가 신규 알림 메일 발송에 성공한 날에만 쓰고(D31), gov는 다음 실행을 시작할 때 이 파일들로 원장의 첫 노출일을 채운다.
 - **`outsource` 추가(2026-11-09)**: 읽는 쪽은 모르는 `kind`를 건너뛰므로 덧붙이기만 한 이 변경은 `format_version`을 올리지 않았다. 옛 daily-report는 이 항목을 보이지 않을 뿐 실패하지 않는다.
 - **`eligibility`**: 수집 실행(`run`)은 빈 배열을 쓴다. 제안 가능성 검토는 별도 명령(`eligibility`)이 같은 계약의 항목을 만들고, 그 결과를 결과 파일에 합칠 때는 `eligibility --merge-into <결과 파일>`을 쓴다. 같은 공고번호의 항목은 바꾸고, 새 공고는 `eligibility` 배열에 더한다.
 

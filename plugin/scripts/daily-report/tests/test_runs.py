@@ -144,6 +144,11 @@ class ArrivalRate(ReportCase):
         self.assertEqual((r["days"], r["arrived"], r["not_run"], r["late_or_failed"]), (5, 2, 1, 2))
         self.assertAlmostEqual(r["rate"], 0.4)
 
+    def test_review_lines_do_not_count_as_a_daily_run(self):  # 검토 #c2: 도착은 daily 줄로만 센다
+        runs = [{"date": "2026-11-02", "routine": "review", "report_ok": True, "published_ok": None}]
+        r = arrival_rate(runs, "2026-11-02", "2026-11-02")
+        self.assertEqual((r["not_run"], r["late_or_failed"]), (1, 0))
+
     def test_deadline_is_adjustable_and_dates_outside_range_are_ignored(self):
         r = arrival_rate(self.runs(), date(2026, 11, 2), date(2026, 11, 3), deadline="11:30")
         self.assertEqual((r["days"], r["arrived"]), (2, 2))
