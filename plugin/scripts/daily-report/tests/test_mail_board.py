@@ -46,6 +46,14 @@ class NewItemsMail(ReportCase):
         self.put_today(mutate)
         self.assertIn("이미 보신 공고 2건의 내용이 바뀌었습니다", self.mail()["html"])
 
+    def test_sheet_link_comes_from_env_when_not_given(self):  # 스킬은 .env를 읽지 않으므로 코드가 읽는다(D30)
+        self.put_today()
+        env = self.tmp / ".env"
+        env.write_text(f"SHEET_URL={SHEET}\nSHEET_APP_TOKEN=tok\n", encoding="utf-8")
+        html = self.mail("--env-file", str(env))["html"]
+        self.assertIn(SHEET, html)
+        self.assertNotIn("tok", html)
+
     def test_missing_result_file_says_so_instead_of_no_news(self):
         m = self.mail()
         self.assertEqual(m["count"], 0)

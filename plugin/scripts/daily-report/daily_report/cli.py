@@ -97,7 +97,8 @@ def main(argv=None, now=None, transport=None):
     m.add_argument("--results", required=True)
     m.add_argument("--out", required=True)
     m.add_argument("--board-url")
-    m.add_argument("--sheet-url")
+    m.add_argument("--sheet-url", help="없으면 --env-file의 SHEET_URL을 쓴다")
+    m.add_argument("--env-file", default=".env")
     bd = sub.add_parser("board", help="시트 응답 JSON으로 입찰 현황판 HTML을 만든다(D28)")
     bd.add_argument("--date", required=True)
     bd.add_argument("--sheet", required=True, help="Apps Script GET 응답을 저장한 JSON 파일({rows: [...]})")
@@ -128,7 +129,8 @@ def main(argv=None, now=None, transport=None):
         run_date = inputs.parse_date(args.date)
         if args.cmd == "mail":
             agents = [inputs.load_agent(args.results, a, run_date) for a in inputs.EXPECTED_AGENTS]
-            text = json.dumps(deliver.render_mail(run_date, agents, args.board_url, args.sheet_url), ensure_ascii=False)
+            sheet_url = args.sheet_url or sheet.read_env(args.env_file).get("SHEET_URL")
+            text = json.dumps(deliver.render_mail(run_date, agents, args.board_url, sheet_url), ensure_ascii=False)
         else:
             rows = json.loads(pathlib.Path(args.sheet).read_text(encoding="utf-8")).get("rows") or []
             text = deliver.render_board(run_date, rows)
