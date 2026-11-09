@@ -71,6 +71,13 @@ class SheetSync(ReportCase):
         self.assertEqual({k: app.calls[0][1][k] for k in ("action", "subject", "html")},
                          {"action": "mail", "subject": "s", "html": "<p>h</p>"})
 
+    def test_status_change_posts_key_and_value(self):
+        app = FakeApp()
+        code, _ = self.cli(["sheet-status", "--key", "bid:R1", "--status", "2차 검토 중"], app)
+        self.assertEqual(code, 0)
+        self.assertEqual({k: app.calls[0][1][k] for k in ("action", "key", "status")},
+                         {"action": "status", "key": "bid:R1", "status": "2차 검토 중"})
+
     def test_missing_settings_fail_cleanly(self):
         self.env.write_text("", encoding="utf-8")
         code, out = self.cli(["sheet-pull", "--out", str(self.tmp / "x.json")], FakeApp())

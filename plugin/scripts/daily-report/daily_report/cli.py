@@ -65,6 +65,9 @@ def _sheet(args, transport):
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(json.dumps({"rows": reply.get("rows") or []}, ensure_ascii=False), encoding="utf-8")
         print(f"시트 읽기 {len(reply.get('rows') or [])}행" if ok else f"시트 읽기 실패: {reply}")
+    elif args.cmd == "sheet-status":
+        ok, reply = sheet.call(env, {"action": "status", "key": args.key, "status": args.status}, transport)
+        print(f"상태 변경 {args.key} → {args.status}" if ok else f"상태 변경 실패: {reply}")
     else:
         mail = json.loads(pathlib.Path(args.mail).read_text(encoding="utf-8"))
         ok, reply = sheet.call(env, {"action": "mail", "subject": mail["subject"], "html": mail["html"]}, transport)
@@ -106,7 +109,10 @@ def main(argv=None, now=None, transport=None):
     sl.add_argument("--out", required=True)
     sm = sub.add_parser("send-mail", help="mail 명령이 만든 본문을 Apps Script로 보낸다")
     sm.add_argument("--mail", required=True)
-    for x in (sp, sl, sm):
+    ss = sub.add_parser("sheet-status", help="시트 행의 상태 칸을 바꾼다(D26)")
+    ss.add_argument("--key", required=True)
+    ss.add_argument("--status", required=True)
+    for x in (sp, sl, sm, ss):
         x.add_argument("--env-file", default=".env")
     a = sub.add_parser("arrival-rate", help="기간의 11시 도착률을 계산한다")
     a.add_argument("--runs", required=True)
@@ -116,7 +122,7 @@ def main(argv=None, now=None, transport=None):
     args = p.parse_args(argv)
     if args.cmd == "build":
         return _build(args, now)
-    if args.cmd in ("sheet-push", "sheet-pull", "send-mail"):
+    if args.cmd in ("sheet-push", "sheet-pull", "send-mail", "sheet-status"):
         return _sheet(args, transport or sheet.http_transport)
     if args.cmd in ("mail", "board"):
         run_date = inputs.parse_date(args.date)
