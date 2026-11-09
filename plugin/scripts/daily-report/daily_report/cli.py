@@ -8,7 +8,7 @@ import json
 import pathlib
 from datetime import datetime, timedelta
 
-from . import deliver, inputs, render, runs
+from . import deliver, inputs, render, runs, sheet
 
 
 def count_delta(today, prev):
@@ -51,7 +51,28 @@ def _build(args, now):
     return 0
 
 
-def main(argv=None, now=None):
+def _sheet(args, transport):
+    """시트 웹 앱 요청 세 가지. 실패는 한 줄로 알리고 1을 돌려준다(다음 단계는 루틴이 이어 간다)."""
+    env = sheet.read_env(args.env_file)
+    if args.cmd == "sheet-push":
+        rows = sheet.build_rows(args.results, inputs.parse_date(args.date))
+        ok, reply = sheet.call(env, {"action": "upsert", "rows": rows}, transport)
+        print(f"시트 기록 {len(rows)}행" if ok else f"시트 기록 실패: {reply}")
+    elif args.cmd == "sheet-pull":
+        ok, reply = sheet.call(env, {"action": "rows"}, transport)
+        if ok:
+            out = pathlib.Path(args.out)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(json.dumps({"rows": reply.get("rows") or []}, ensure_ascii=False), encoding="utf-8")
+        print(f"시트 읽기 {len(reply.get('rows') or [])}행" if ok else f"시트 읽기 실패: {reply}")
+    else:
+        mail = json.loads(pathlib.Path(args.mail).read_text(encoding="utf-8"))
+        ok, reply = sheet.call(env, {"action": "mail", "subject": mail["subject"], "html": mail["html"]}, transport)
+        print("메일 발송 성공" if ok else f"메일 발송 실패: {reply}")
+    return 0 if ok else 1
+
+
+def main(argv=None, now=None, transport=None):
     now = now or (lambda: datetime.now(runs.KST))
     p = argparse.ArgumentParser(prog="daily_report")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -78,6 +99,15 @@ def main(argv=None, now=None):
     bd.add_argument("--date", required=True)
     bd.add_argument("--sheet", required=True, help="Apps Script GET 응답을 저장한 JSON 파일({rows: [...]})")
     bd.add_argument("--out", required=True)
+    sp = sub.add_parser("sheet-push", help="그날 새 항목을 수집 이력 시트에 보낸다(마감 지난 행 제외)")
+    sp.add_argument("--date", required=True)
+    sp.add_argument("--results", required=True)
+    sl = sub.add_parser("sheet-pull", help="시트의 마감 전 행을 받아 JSON으로 저장한다(현황판 입력)")
+    sl.add_argument("--out", required=True)
+    sm = sub.add_parser("send-mail", help="mail 명령이 만든 본문을 Apps Script로 보낸다")
+    sm.add_argument("--mail", required=True)
+    for x in (sp, sl, sm):
+        x.add_argument("--env-file", default=".env")
     a = sub.add_parser("arrival-rate", help="기간의 11시 도착률을 계산한다")
     a.add_argument("--runs", required=True)
     a.add_argument("--from", dest="start", required=True)
@@ -86,6 +116,8 @@ def main(argv=None, now=None):
     args = p.parse_args(argv)
     if args.cmd == "build":
         return _build(args, now)
+    if args.cmd in ("sheet-push", "sheet-pull", "send-mail"):
+        return _sheet(args, transport or sheet.http_transport)
     if args.cmd in ("mail", "board"):
         run_date = inputs.parse_date(args.date)
         if args.cmd == "mail":
