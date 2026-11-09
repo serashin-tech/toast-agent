@@ -12,7 +12,8 @@ from datetime import date, datetime
 EXPECTED_AGENTS = ("gov",)
 FORMAT_VERSION = "1"
 
-_SOURCE_KEYS = ("id", "label", "status", "fetched", "included", "excluded", "new_count", "error", "last_success_at")
+_SOURCE_KEYS = ("id", "label", "status", "fetched", "included", "excluded", "new_count", "changed_shown_count",
+                "error", "last_success_at")
 _ITEM_KEYS = ("source", "kind", "id", "title", "posted_on", "deadline", "url", "matched_keywords", "summary", "is_new")
 _EXTRA_KEYS = {
     "bid": ("agency", "demand_agency", "est_price"),  # attachments는 보고서에 싣지 않으므로 읽지 않는다

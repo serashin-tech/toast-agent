@@ -1,13 +1,14 @@
-"""명령줄 진입점: build, record-publish, arrival-rate.
+"""명령줄 진입점: build, mail, board, record-publish, arrival-rate.
 
-이 코드는 호출된 시점에 있는 결과 파일만으로 보고서를 만든다. 10:50 시간 상자는 호출하는 루틴의 일이고,
-게시(artifact)도 이 코드의 일이 아니다. 네트워크에 접근하지 않는다.
+이 코드는 호출된 시점에 있는 결과 파일만으로 전달물을 만든다. 10:50 시간 상자, 메일 발송(Apps Script),
+artifact 게시는 호출하는 루틴의 일이다. 네트워크에 접근하지 않는다.
 """
 import argparse
+import json
 import pathlib
 from datetime import datetime, timedelta
 
-from . import inputs, render, runs
+from . import deliver, inputs, render, runs
 
 
 def count_delta(today, prev):
@@ -67,6 +68,16 @@ def main(argv=None, now=None):
     r.add_argument("--at", required=True, help="발송 일시(ISO 8601)")
     r.add_argument("--ok", required=True, choices=["true", "false"])
     r.add_argument("--results", help="결과 폴더. 주면 성공한 날 노출 기록(shown_<날짜>.json)을 쓴다")
+    m = sub.add_parser("mail", help="신규 알림 메일 본문(JSON: subject, html, count)을 만든다(D30)")
+    m.add_argument("--date", required=True)
+    m.add_argument("--results", required=True)
+    m.add_argument("--out", required=True)
+    m.add_argument("--board-url")
+    m.add_argument("--sheet-url")
+    bd = sub.add_parser("board", help="시트 응답 JSON으로 입찰 현황판 HTML을 만든다(D28)")
+    bd.add_argument("--date", required=True)
+    bd.add_argument("--sheet", required=True, help="Apps Script GET 응답을 저장한 JSON 파일({rows: [...]})")
+    bd.add_argument("--out", required=True)
     a = sub.add_parser("arrival-rate", help="기간의 11시 도착률을 계산한다")
     a.add_argument("--runs", required=True)
     a.add_argument("--from", dest="start", required=True)
@@ -75,6 +86,18 @@ def main(argv=None, now=None):
     args = p.parse_args(argv)
     if args.cmd == "build":
         return _build(args, now)
+    if args.cmd in ("mail", "board"):
+        run_date = inputs.parse_date(args.date)
+        if args.cmd == "mail":
+            agents = [inputs.load_agent(args.results, a, run_date) for a in inputs.EXPECTED_AGENTS]
+            text = json.dumps(deliver.render_mail(run_date, agents, args.board_url, args.sheet_url), ensure_ascii=False)
+        else:
+            rows = json.loads(pathlib.Path(args.sheet).read_text(encoding="utf-8")).get("rows") or []
+            text = deliver.render_board(run_date, rows)
+        out = pathlib.Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        return 0
     if args.cmd == "record-publish":
         runs.record_publish(args.runs, args.date, args.at, args.ok == "true", results_dir=args.results)
         return 0
