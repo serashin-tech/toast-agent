@@ -40,6 +40,12 @@ class NewItemsMail(ReportCase):
         self.assertLess(html.index("수집하지 못한 소스"), html.index("입찰공고"))
         self.assertNotIn("SECRETKEY", html)
 
+    def test_renotified_bid_is_marked(self):  # D18
+        def mutate(d):
+            d["items"][0]["renotify"] = True
+        self.put_today(mutate)
+        self.assertEqual(self.mail()["html"].count("다시 알림"), 1)
+
     def test_changed_shown_count_is_one_line(self):
         def mutate(d):
             d["sources"][0]["changed_shown_count"] = 2

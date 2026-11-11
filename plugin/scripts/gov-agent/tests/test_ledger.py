@@ -48,6 +48,31 @@ class Ledger(Base):
         shown(self.out, "2026-11-05", ["grant_kocca:K1"])
         self.assertEqual(self.ids(self.day("2026-11-06", koccas=[k], bizinfos=[b])), [])
 
+    def requested(self, keys_status):
+        p = self.out.parent / "sheet.json"
+        p.write_text(json.dumps({"rows": [{"key": k, "status": s} for k, s in keys_status]}, ensure_ascii=False),
+                     encoding="utf-8")
+        return p
+
+    def test_changed_item_under_review_is_listed_again(self):  # 티켓 20, D18
+        self.day("2026-11-05", bids=[fx.bid("B1", "홍보 애니메이션"), fx.bid("B2", "캐릭터 애니메이션")])
+        shown(self.out, "2026-11-05", ["bid:B1", "bid:B2"])
+        sheet = self.requested([("bid:B1", "2차 검토 중"), ("bid:B2", "보류")])
+        bids = [fx.bid("B1", "홍보 애니메이션", deadline="2026-12-05 18:00"),
+                fx.bid("B2", "캐릭터 애니메이션", deadline="2026-12-05 18:00")]
+        r = self.run_day(FakeTransport(ok_routes(bids=bids)), date="2026-11-06", sheet_rows=sheet)
+        self.assertEqual(self.ids(r), ["B1"])
+        self.assertIs(r["items"][0]["renotify"], True)
+        self.assertEqual(self.src(r, "bid")["changed_shown_count"], 1)  # B2는 지금처럼 건수만
+
+    def test_unchanged_item_under_review_is_not_listed_again(self):
+        self.day("2026-11-05", bids=[fx.bid("B1", "홍보 애니메이션")])
+        shown(self.out, "2026-11-05", ["bid:B1"])
+        sheet = self.requested([("bid:B1", "2차 검토 요청")])
+        r = self.run_day(FakeTransport(ok_routes(bids=[fx.bid("B1", "홍보 애니메이션")])), date="2026-11-06",
+                         sheet_rows=sheet)
+        self.assertEqual(self.ids(r), [])
+
     def test_ledger_keeps_sheet_row_fields(self):  # 티켓 21: 시트는 원장 기준으로 쓴다
         self.day("2026-11-05", bids=[fx.bid("B1", "홍보 애니메이션", price=50000000, deadline="2026-11-30 18:00")])
         e = json.loads((self.state / "ledger.json").read_text(encoding="utf-8"))["bid:B1"]

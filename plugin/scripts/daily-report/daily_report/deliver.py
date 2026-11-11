@@ -44,7 +44,9 @@ def render_mail(run_date, agents, board_url=None, sheet_url=None):
         out.append(p + f"이미 보신 공고 {changed}건의 내용이 바뀌었습니다(시트에서 확인).</p>")
     for sid, title, source_ids in SECTIONS:
         its = [it for it in items if it["source"] in source_ids or (sid == "grant" and it["kind"] == "grant")]
-        body = "".join(f'<li style="margin:0 0 8px">{link(it["title"], it["url"])}<br>'
+        body = "".join(f'<li style="margin:0 0 8px">'
+                       + ("<strong>[다시 알림: 검토를 요청하신 공고의 내용이 바뀌었습니다]</strong> " if it.get("renotify") else "")
+                       + f'{link(it["title"], it["url"])}<br>'
                        f'<span style="color:#5f6672">{_meta(it, run_date)}</span></li>' for it in its)
         out.append(f'<h2 style="font-size:16px;margin:16px 0 8px">{esc(title)} {len(its)}건</h2>'
                    + (f"<ul>{body}</ul>" if its else p + "새 항목이 없습니다.</p>"))

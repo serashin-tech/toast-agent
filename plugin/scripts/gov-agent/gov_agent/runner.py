@@ -85,7 +85,21 @@ def _fetch(src, transport, key, state, env, now, run_date_s, call_budget):
             "since": since_s, "excluded": 0, "included": 0, "new": 0, "changed_shown": 0}
 
 
-def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=None, call_budget=900):
+REQUESTED = ("2차 검토 요청", "2차 검토 중", "2차 완료", "데모 요청", "데모 완료")  # D18: 바뀌면 다시 알릴 상태(D26)
+
+
+def _requested_keys(sheet_rows):
+    """시트 읽기 결과(report.py sheet-pull의 JSON)에서 대표가 검토를 요청한 행의 키. 파일이 없으면 빈 집합."""
+    if not sheet_rows:
+        return set()
+    try:
+        rows = json.loads(Path(sheet_rows).read_text(encoding="utf-8")).get("rows") or []
+    except (OSError, ValueError, AttributeError):
+        return set()
+    return {r.get("key") for r in rows if str(r.get("status") or "").startswith(REQUESTED)}
+
+
+def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=None, call_budget=900, sheet_rows=None):
     run_date_d = date.fromisoformat(run_date) if isinstance(run_date, str) else run_date
     run_date_s = run_date_d.isoformat()
     now = now or datetime.now(KST)
@@ -98,6 +112,7 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
     cfg, problems, files = st.load_all(settings_dir, state_dir / "last_good_settings")
     res = {s.ID: _fetch(s, transport, key, state, env, now, run_date_s, call_budget) for s in ALL}
     ledger = _load_ledger(state_dir, out_dir)
+    requested = _requested_keys(sheet_rows)
     touched, items = {}, []
 
     # 지원사업은 한콘진·중소기업 두 출처에 따로 올라와 날짜가 어긋날 수 있으므로, 같은 사업의 열쇠로도 노출을 본다.
@@ -128,14 +143,15 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
             r["excluded"] += 1
             continue
         was_shown, changed = check("bid", it, row_of("bid", "bid", it, it["agency"], it["est_price"], matched))
-        if was_shown:
+        renotify = was_shown and changed and f"bid:{it['id']}" in requested  # D18: 검토를 요청한 공고만 다시 알린다
+        if was_shown and not renotify:
             r["changed_shown"] += changed
             continue
         r["included"] += 1
-        r["new"] += 1
+        r["new"] += not renotify
         items.append(_item("bid", "bid", it, matched, [f"bid:{it['id']}"], {
             "agency": it["agency"], "demand_agency": it["demand_agency"], "est_price": it["est_price"],
-            "attachments": it["attachments"]}))
+            "attachments": it["attachments"]}, renotify=renotify))
 
     r = res["outsource_cglink"]
     for it in r["cands"]:  # 한 달에 몇 건뿐이라 필터 없이 새 글을 모두 싣는다
@@ -218,8 +234,14 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
     return path
 
 
-def _item(source, kind, it, matched, keys, extra):
-    """결과 파일의 항목 하나. 아직 보여 주지 않은 항목만 싣으므로 is_new는 늘 참이다(D13)."""
-    return {"source": source, "kind": kind, "id": it["id"], "title": it["title"],
-            "posted_on": _iso(it["posted_on"]), "deadline": _iso(it["deadline"]), "url": it["url"],
-            "matched_keywords": matched, "summary": None, "is_new": True, "keys": keys, "extra": extra}
+def _item(source, kind, it, matched, keys, extra, renotify=False):
+    """결과 파일의 항목 하나. 아직 보여 주지 않은 항목만 싣으므로 is_new는 늘 참이다(D13).
+
+    renotify는 이미 보여 줬지만 대표가 검토를 요청한 뒤 내용이 바뀌어 다시 싣는 입찰공고에만 붙는다(D18).
+    """
+    out = {"source": source, "kind": kind, "id": it["id"], "title": it["title"],
+           "posted_on": _iso(it["posted_on"]), "deadline": _iso(it["deadline"]), "url": it["url"],
+           "matched_keywords": matched, "summary": None, "is_new": True, "keys": keys, "extra": extra}
+    if renotify:
+        out["renotify"] = True
+    return out

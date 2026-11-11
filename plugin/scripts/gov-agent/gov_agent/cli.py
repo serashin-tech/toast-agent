@@ -51,6 +51,7 @@ def main(argv=None, transport=None, environ=None, now=None):
     r.add_argument("--settings", default=DEFAULT_SETTINGS)
     r.add_argument("--state", default=DEFAULT_STATE)
     r.add_argument("--env-file", default=DEFAULT_ENV)
+    r.add_argument("--sheet-rows", help="report.py sheet-pull이 저장한 시트 JSON. 주면 검토 요청 공고의 변경을 다시 알린다(D18)")
     e = sub.add_parser("eligibility", help="요건 JSON과 회사 프로필을 대조해 eligibility 항목을 낸다")
     e.add_argument("--input", required=True, help="요건 JSON 파일(docs/eligibility-input.md)")
     e.add_argument("--settings", default=DEFAULT_SETTINGS)
@@ -97,7 +98,8 @@ def main(argv=None, transport=None, environ=None, now=None):
         return 0
 
     env = {**read_env_file(a.env_file), **dict(os.environ if environ is None else environ)}
-    path = run(a.date, a.out, a.settings, a.state, transport or urllib_transport, env=env, now=now)
+    path = run(a.date, a.out, a.settings, a.state, transport or urllib_transport, env=env, now=now,
+               sheet_rows=a.sheet_rows)
     result = json.loads(path.read_text(encoding="utf-8"))
     print(f"결과 파일: {path}")
     for s in result["sources"]:

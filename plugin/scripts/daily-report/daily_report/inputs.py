@@ -14,7 +14,8 @@ FORMAT_VERSION = "1"
 
 _SOURCE_KEYS = ("id", "label", "status", "fetched", "included", "excluded", "new_count", "changed_shown_count",
                 "error", "last_success_at")
-_ITEM_KEYS = ("source", "kind", "id", "title", "posted_on", "deadline", "url", "matched_keywords", "summary", "is_new")
+_ITEM_KEYS = ("source", "kind", "id", "title", "posted_on", "deadline", "url", "matched_keywords", "summary", "is_new",
+              "renotify")
 _EXTRA_KEYS = {
     "bid": ("agency", "demand_agency", "est_price"),  # attachments는 보고서에 싣지 않으므로 읽지 않는다
     "grant": ("agency", "period_start", "period_end", "dday", "category", "target", "contact", "origins"),
@@ -70,6 +71,7 @@ def _normalize(raw, agent, run_date):
         kw = base["matched_keywords"]
         base["matched_keywords"] = [str(k) for k in kw] if isinstance(kw, list) else []
         base["is_new"] = base["is_new"] is True
+        base["renotify"] = base["renotify"] is True
         items.append(base)
     elig = []
     for e in _list(raw["eligibility"]):
