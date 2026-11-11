@@ -17,6 +17,8 @@ const COLS = ['key', 'alt_keys', 'source', 'kind', 'title', 'agency', 'price', '
 const HEAD = ['키', '같은 사업 키', '소스', '종류', '제목', '기관·작성자', '추정가격', '마감일', '등록일', '원문 링크',
               '일치 키워드', '상태', '대표 메모', '최근 갱신'];
 const KEEP = ['status', 'memo'];  // 코드가 덮어쓰지 않는 열
+// 상태 값(D26)의 정본은 docs/decisions.md D26이다. 파이썬 쪽 목록 두 개(gov_agent/runner.py REQUESTED,
+// daily_report/deliver.py REVIEWING)는 plugin/tests/test_contract.py가 서로 같은지 검사한다. 여기서는 '신규'만 쓴다.
 const NO_DEADLINE_DAYS = 30;
 
 function doPost(e) {

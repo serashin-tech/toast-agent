@@ -28,3 +28,11 @@ def mark(extraction, source):
             ev["quote_found"] = bool(quote) and quote in source
             item["evidence"] = ev
     return extraction
+
+
+def evidence_of(ev):
+    """판정 결과에 싣는 근거 모양. 인용 대조를 했으면 quote_found도 함께 싣는다(eligibility·brief가 함께 쓴다)."""
+    out = {"quote": ev.get("quote") or None, "location": ev.get("location") or None}
+    if "quote_found" in ev:
+        out["quote_found"] = ev["quote_found"]
+    return out

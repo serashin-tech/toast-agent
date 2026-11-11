@@ -132,7 +132,7 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
     # 지원사업은 한콘진·중소기업 두 출처에 따로 올라와 날짜가 어긋날 수 있으므로, 같은 사업의 열쇠로도 노출을 본다.
     shown_groups = {e["group"] for e in ledger.values() if e.get("group") and e.get("first_shown")}
 
-    def check(source_id, it, row, group=None, alias_of=None):
+    def note_and_check(source_id, it, row, group=None, alias_of=None):
         """(이미 보여 줬는가, 보여 준 뒤 내용이 바뀌었는가). 노출 판정의 정본은 로컬 원장이다(D13).
 
         실행 끝에 원장에 반영할 값(지문, 시트 행 필드, 같은 사업 열쇠, 대표 행 키)도 함께 적어 둔다.
@@ -156,7 +156,7 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
         if not ok:
             r["excluded"] += 1
             continue
-        was_shown, changed = check("bid", it, row_of("bid", "bid", it, it["agency"], it["est_price"], matched))
+        was_shown, changed = note_and_check("bid", it, row_of("bid", "bid", it, it["agency"], it["est_price"], matched))
         renotify = was_shown and changed and f"bid:{it['id']}" in requested  # D18: 검토를 요청한 공고만 다시 알린다
         if was_shown and not renotify:
             r["changed_shown"] += changed
@@ -169,7 +169,7 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
 
     r = res["outsource_cglink"]
     for it in r["cands"]:  # 한 달에 몇 건뿐이라 필터 없이 새 글을 모두 싣는다
-        was_shown, changed = check("outsource_cglink", it,
+        was_shown, changed = note_and_check("outsource_cglink", it,
                                    row_of("outsource", "outsource_cglink", it, it["poster"], None, []))
         if was_shown:
             r["changed_shown"] += changed
@@ -194,7 +194,7 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
         matched = sorted({w for _, m in members for w in m["_matched"]}, key=main["title"].lower().find)
         keys = [f"{s}:{m['id']}" for s, m in members]  # 첫 키가 대표 행(중소기업 쪽이 있으면 그쪽)
         row = row_of("grant", origins[0] if len(origins) == 1 else "grant", main, main["agency"], None, matched)
-        flags = [check(s, m, row, group, None if i == 0 else keys[0]) for i, (s, m) in enumerate(members)]
+        flags = [note_and_check(s, m, row, group, None if i == 0 else keys[0]) for i, (s, m) in enumerate(members)]
         if any(f[0] for f in flags):  # 출처 하나라도 보여 줬으면 보여 준 것으로 본다
             for s in origins:
                 res[s]["changed_shown"] += any(f[1] for f in flags)

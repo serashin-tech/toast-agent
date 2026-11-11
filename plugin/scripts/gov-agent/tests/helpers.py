@@ -5,9 +5,8 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from gov_agent.fakes import FakeTransport, ok_routes  # noqa: F401  시험들이 helpers에서 가져다 쓴다
 from gov_agent.runner import run
-
-import fixtures as fx
 
 KST = timezone(timedelta(hours=9))
 KEY = "SECRETKEY%2Babc123"
@@ -29,33 +28,6 @@ def bid_filter_md(include="", exclude="", pmin="", pmax="", days="", types=""):
 def grant_md(agency="", field="", keywords="", exclude=""):
     return md("지원사업 검색 조건", ["항목", "값"], [
         ["관심 기관", agency], ["사업 분야", field], ["지원사업 키워드", keywords], ["제외 키워드", exclude]])
-
-
-class FakeTransport:
-    """url 조각 -> 응답 처리기. 호출을 기록한다."""
-
-    def __init__(self, routes):
-        self.routes = routes
-        self.calls = []
-
-    def __call__(self, url, params):
-        self.calls.append((url, dict(params)))
-        for part, handler in self.routes.items():
-            if part in url:
-                r = handler(params) if callable(handler) else handler
-                if isinstance(r, Exception):
-                    raise r
-                return r if isinstance(r, tuple) else (200, r)
-        raise AssertionError(f"예상하지 못한 주소 호출: {url}")
-
-    def calls_to(self, part):
-        return [p for u, p in self.calls if part in u]
-
-
-def ok_routes(bids=(), koccas=(), bizinfos=(), cglinks=()):
-    return {"BidPublicInfoService02": fx.envelope(list(bids)),
-            "kocca.test": fx.envelope(list(koccas)), "1421000/bizinfo": fx.envelope(list(bizinfos)),
-            "cglink.com": fx.rss(list(cglinks))}
 
 
 class Base(unittest.TestCase):

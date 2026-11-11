@@ -35,5 +35,18 @@ class ResultContract(unittest.TestCase):
         self.assertEqual({s["id"] for s in read["sources"]}, {s["id"] for s in written["sources"]})
 
 
+class StatusNames(unittest.TestCase):
+    """시트 상태 이름(D26)은 두 패키지에 따로 있다. 한쪽만 바뀌면 재알림과 현황판 순서가 어긋나므로 기계로 맞춘다(티켓 24)."""
+
+    def test_review_status_lists_match(self):
+        from daily_report.deliver import REVIEWING
+        from gov_agent.runner import REQUESTED
+        self.assertEqual(tuple(REQUESTED), tuple(REVIEWING))
+
+    def test_apps_script_knows_the_initial_status(self):
+        code = (common.PLUGIN.parent / "apps-script" / "Code.gs").read_text(encoding="utf-8")
+        self.assertIn("'신규'", code)
+
+
 if __name__ == "__main__":
     unittest.main()

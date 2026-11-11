@@ -6,23 +6,25 @@
 """
 import contextlib
 import io
-import json
+import os
 import shutil
 import sys
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-for p in (HERE / "gov-agent", HERE / "gov-agent" / "tests", HERE / "daily-report"):
+for p in (HERE / "gov-agent", HERE / "daily-report"):
     sys.path.insert(0, str(p))
 
-import fixtures as fx  # noqa: E402  gov-agent 시험의 가짜 응답 모양을 그대로 쓴다
 from daily_report.cli import main as report  # noqa: E402
+from gov_agent import fakes as fx  # noqa: E402  시험과 같은 가짜 응답
 from gov_agent.cli import main as gov  # noqa: E402
-from helpers import KEY, KST, FakeTransport, ok_routes  # noqa: E402
+from gov_agent.fakes import FakeTransport, ok_routes  # noqa: E402
 
 DATE = "2026-11-11"
+KST = timezone(timedelta(hours=9))
+KEY = "SECRETKEY%2Brehearsal"  # 가짜 키. 어떤 산출물에도 남지 않아야 한다
 
 
 class FakeSheetApp:
@@ -60,7 +62,6 @@ def rehearse(work):
     log = io.StringIO()
     here = Path.cwd()
     try:
-        import os
         os.chdir(work)
         with contextlib.redirect_stdout(log):
             steps = [

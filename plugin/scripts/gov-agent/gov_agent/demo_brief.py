@@ -5,6 +5,7 @@
 """
 from pathlib import Path
 
+from .quotes import evidence_of
 from .settings import SettingsError, read_table
 
 DISCLAIMER = "AI가 만든 1차 판정과 브리프입니다. 시연 데모 제작 여부와 최종 판단은 대표가 합니다."
@@ -41,11 +42,8 @@ def build_brief(extraction, eligibility, criteria_path):
     signals = []
     for s in extraction.get("signals") or []:
         ev = s.get("evidence") or {}
-        evidence = {"quote": ev.get("quote") or None, "location": ev.get("location") or None}
-        if "quote_found" in ev:
-            evidence["quote_found"] = ev["quote_found"]
         signals.append({"text": s.get("text"), "deliverable": s.get("deliverable"), "verdict": _verdict(s, words),
-                        "evidence": evidence})
+                        "evidence": evidence_of(ev)})
     unreadable = list(extraction.get("unreadable_files") or [])
 
     overall = (eligibility or {}).get("overall")

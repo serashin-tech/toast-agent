@@ -5,6 +5,7 @@
 import re
 from pathlib import Path
 
+from .quotes import evidence_of
 from .settings import SettingsError, load_profile
 
 DISCLAIMER = "최종 판단은 대표가 합니다. 이 의견은 확인된 프로필 값과 공고문 근거 문장만으로 만든 참고 자료이며 낙찰 가능성을 보증하지 않습니다."
@@ -147,12 +148,8 @@ def build_eligibility(extraction, profile_path):
     for r in extraction.get("requirements", []):
         r = {**r, "params": r.get("params") or {}}
         verdict, item = ("extract_only", None) if profile is None else _judge(r, profile)
-        ev = r.get("evidence") or {}
-        evidence = {"quote": ev.get("quote") or None, "location": ev.get("location") or None}
-        if "quote_found" in ev:
-            evidence["quote_found"] = ev["quote_found"]
         out.append({"category": r.get("category"), "text": r.get("text"), "verdict": verdict, "profile_item": item,
-                    "evidence": evidence})
+                    "evidence": evidence_of(r.get("evidence") or {})})
     v = [x["verdict"] for x in out]
     n = {k: v.count(k) for k in ("met", "unmet", "needs_check")}
     count = f"충족 {n['met']}건, 미충족 {n['unmet']}건, 확인필요 {n['needs_check']}건"
