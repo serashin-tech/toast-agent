@@ -11,7 +11,7 @@ INVARIANTS = ROOT / "rules" / "invariants.md"
 
 def main():
     rules = INVARIANTS.read_text(encoding="utf-8").replace("${CLAUDE_PLUGIN_ROOT}", str(ROOT))
-    context = f"toast 플러그인({ROOT})의 불변 규칙이다.\n\n{rules}"
+    context = f"toast-agent 플러그인(토스트 에이전트, {ROOT})의 불변 규칙이다.\n\n{rules}"
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context}}))
 
 

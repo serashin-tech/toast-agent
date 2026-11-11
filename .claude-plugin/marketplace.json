@@ -1,12 +1,12 @@
 {
   "name": "toast-agent",
-  "description": "토스트 애니메이션 스튜디오 정부사업·시장 정보 에이전트",
+  "description": "토스트 애니메이션 스튜디오의 토스트 에이전트(정부사업 에이전트, 시장 정보 에이전트)",
   "owner": { "name": "Codepresso" },
   "plugins": [
     {
-      "name": "toast",
+      "name": "toast-agent",
       "source": "./plugin",
-      "description": "공고 수집, 신규 알림 메일, 입찰 현황판, 2차 검토, 1차 시연 데모를 매일 같은 방식으로 돌리는 하네스"
+      "description": "토스트 에이전트: 정부사업 에이전트(gov-agent)와 시장 정보 에이전트(market-agent)를 매일 같은 방식으로 돌리는 하네스"
     }
   ]
 }

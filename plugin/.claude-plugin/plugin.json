@@ -1,6 +1,6 @@
 {
-  "name": "toast",
-  "version": "0.2.0",
-  "description": "토스트 애니메이션 스튜디오의 정부사업 에이전트 하네스: 매일 10:00 루틴, 30분 2차 검토, 1차 시연 데모, 설정 변경, 주간 점검",
+  "name": "toast-agent",
+  "version": "0.3.0",
+  "description": "토스트 에이전트(정부사업 에이전트 gov-agent와 시장 정보 에이전트 market-agent)의 하네스: 매일 10:00 루틴, 30분 2차 검토, 1차 시연 데모, 설정 변경, 주간 점검",
   "author": { "name": "Codepresso" }
 }
