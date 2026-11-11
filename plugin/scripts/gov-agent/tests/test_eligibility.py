@@ -55,12 +55,12 @@ class Eligibility(unittest.TestCase):
         self.assertEqual(self.verdicts(out), ["needs_check"] * 4)  # 마지막은 프로필에 항목이 없음
         self.assertEqual(out["overall"], "conditional")
 
-    def test_other_kind_and_missing_evidence_need_check(self):
+    def test_other_kind_is_reference_and_missing_evidence_needs_check(self):  # D36
         self.profile([("소재지", "전북 전주시", "확인됨")])
         out = self.review(req("기타"), req("소재지", {"지역": "전북"}, evidence=None),
                           req("소재지", {"지역": "전북"}, evidence={"quote": "문장", "location": ""}),
                           req("소재지", {"지역": "전북"}, evidence={"quote": "", "location": "1쪽"}))
-        self.assertEqual(self.verdicts(out), ["needs_check"] * 4)
+        self.assertEqual(self.verdicts(out), ["reference"] + ["needs_check"] * 3)
         self.assertEqual(out["requirements"][1]["evidence"], {"quote": None, "location": None})
 
     def test_record_requirement_counts_only_confirmed_rows(self):
@@ -101,11 +101,25 @@ class Eligibility(unittest.TestCase):
 
     def test_overall_rules(self):
         self.profile([("소재지", "전북 전주시", "확인됨")])
-        met, unmet, check = req("소재지", {"지역": "전북"}), req("소재지", {"지역": "서울"}), req("기타")
+        met, unmet = req("소재지", {"지역": "전북"}), req("소재지", {"지역": "서울"})
+        check = req("소재지", {"지역": "전북"}, evidence=None)
         self.assertEqual(self.review(met)["overall"], "recommend")
         self.assertEqual(self.review(met, check)["overall"], "conditional")
         self.assertEqual(self.review(met, check, unmet)["overall"], "not_recommend")
         self.assertEqual(self.review(unmet)["overall"], "not_recommend")
+
+    def test_reference_conditions_do_not_change_the_overall_but_are_named(self):  # D36
+        self.profile([("소재지", "전북 전주시", "확인됨")])
+        out = self.review(req("소재지", {"지역": "전북"}), req("기타", text="청렴계약 이행서약서 제출"), req("기타"))
+        self.assertEqual(out["overall"], "recommend")
+        self.assertIn("참고 조건 2건", out["reason"])
+        self.assertIn("대표", out["reason"])  # 참고 조건은 대표가 확인한다
+
+    def test_only_reference_conditions_is_conditional(self):  # 대조할 요건이 없으면 권고하지 않는다
+        self.profile([("소재지", "전북", "확인됨")])
+        out = self.review(req("기타"), req("기타"))
+        self.assertEqual(out["overall"], "conditional")
+        self.assertIn("대조할 수 있는 요건이 없", out["reason"])
 
     def test_any_unmet_never_recommends(self):
         self.profile([("소재지", "전북 전주시", "확인됨"), ("중소기업 확인", "미보유", "확인됨")])

@@ -124,8 +124,10 @@ def _records(profile, req):
 
 
 def _judge(req, profile):
-    """(verdict, profile_item)."""
+    """(verdict, profile_item). 기타 요건은 대조하지 않는 참고 조건이다(D36)."""
     kind = req.get("kind")
+    if kind == "기타":
+        return "reference", None
     item = PROFILE_ITEM.get(kind)
     ev = req.get("evidence") or {}
     if not (ev.get("quote") and ev.get("location")) or ev.get("quote_found") is False or item is None:
@@ -151,16 +153,21 @@ def build_eligibility(extraction, profile_path):
         out.append({"category": r.get("category"), "text": r.get("text"), "verdict": verdict, "profile_item": item,
                     "evidence": evidence_of(r.get("evidence") or {})})
     v = [x["verdict"] for x in out]
-    n = {k: v.count(k) for k in ("met", "unmet", "needs_check")}
+    n = {k: v.count(k) for k in ("met", "unmet", "needs_check", "reference")}
+    compared = len(out) - n["reference"]  # 종합 의견은 대조할 수 있는 요건만으로 정한다(D36)
     count = f"충족 {n['met']}건, 미충족 {n['unmet']}건, 확인필요 {n['needs_check']}건"
+    refs = f" 참고 조건 {n['reference']}건은 대조하지 않았으니 대표가 확인해 주십시오." if n["reference"] else ""
     if profile is None:
         overall, reason = "extract_only", f"회사 프로필이 없거나 읽지 못해 요건 {len(out)}건만 추출했습니다. 대조는 하지 않았습니다."
     elif n["unmet"]:
-        overall, reason = "not_recommend", f"미충족 요건이 있습니다({count})."
-    elif n["needs_check"] or not out:
-        overall = "conditional"
-        reason = f"확인이 필요한 요건이 있습니다({count})." if out else "추출된 요건이 없어 충족 여부를 판단하지 못했습니다."
+        overall, reason = "not_recommend", f"미충족 요건이 있습니다({count}).{refs}"
+    elif not out:
+        overall, reason = "conditional", "추출된 요건이 없어 충족 여부를 판단하지 못했습니다."
+    elif not compared:
+        overall, reason = "conditional", f"대조할 수 있는 요건이 없어 충족 여부를 판단하지 못했습니다.{refs}"
+    elif n["needs_check"]:
+        overall, reason = "conditional", f"확인이 필요한 요건이 있습니다({count}).{refs}"
     else:
-        overall, reason = "recommend", f"확인된 요건이 모두 충족입니다({count})."
+        overall, reason = "recommend", f"확인된 요건이 모두 충족입니다({count}).{refs}"
     return {"bid_id": extraction.get("bid_id"), "overall": overall, "reason": reason, "disclaimer": DISCLAIMER,
             "unreadable_files": list(extraction.get("unreadable_files") or []), "requirements": out}

@@ -43,6 +43,11 @@ class QuoteCheck(unittest.TestCase):
         self.assertEqual(out["requirements"][0]["verdict"], "met")
         self.assertIs(out["requirements"][0]["evidence"]["quote_found"], True)
 
+    def test_markdown_emphasis_in_source_is_ignored(self):  # kordoc은 굵은 글씨를 **로 남긴다
+        (self.text / "공고문.md").write_text("참가자격: **전북\n소재** 업체에 __한함__", encoding="utf-8")
+        out = self.call("eligibility", extraction("R1", "전북"))
+        self.assertIs(out["requirements"][0]["evidence"]["quote_found"], True)
+
     def test_quote_missing_from_source_becomes_needs_check(self):
         (self.text / "공고문.md").write_text("참가자격: 제한 없음", encoding="utf-8")
         out = self.call("eligibility", extraction("R1", "전북"))

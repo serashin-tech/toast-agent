@@ -40,15 +40,15 @@
 | 소재지 | 소재지 | `지역`(문자열) | 프로필 소재지 문자열에 지역 문자열이 들어 있음 |
 | 실적 | 수행 실적 1, 2, ... | `min_count`(기본 1), `min_amount`(원, 선택) | 확인됨 행 중 조건을 만족하는 건수가 `min_count` 이상 |
 | 인력 | 보유 인력(직무별 인원, 경력 연수) | `role`, `min_count` | 프로필 값을 `직무 N명, 직무 N명` 형식으로 읽어 그 직무 인원이 `min_count` 이상 |
-| 기타 | 없음 | 없음 | 대조하지 않음. 항상 `needs_check` |
+| 기타 | 없음 | 없음 | 대조하지 않음. 항상 `reference`(참고 조건, D36) |
 
 값이 미보유 계열(미보유, 없음, 아니오 등)이면 `unmet`입니다. 보유 계열도 미보유 계열도 아닌 값은 `needs_check`입니다.
 
 ## 판정 규칙
 
 1. 회사 프로필이 없거나 읽지 못하면 대조하지 않습니다. 모든 요건이 `extract_only`, 종합은 `extract_only`입니다.
-2. 근거(`quote`, `location`)가 없거나 `kind`가 기타(또는 모르는 값)이면 `needs_check`입니다.
+2. `kind`가 기타이면 `reference`(참고 조건)입니다. 그 밖에 근거(`quote`, `location`)가 없거나 `kind`가 모르는 값이면 `needs_check`입니다.
 3. 프로필 항목의 확인 상태가 `확인됨`이 아니거나 항목이 없거나 값이 비면 `needs_check`입니다. 확인되지 않은 값으로 `met`이나 `unmet`을 만들지 않습니다.
 4. 실적은 확인 상태가 `확인됨`인 행만 충족으로 셉니다. 확인됨 행만으로 모자라도, 확인되지 않은 행이나 금액을 모르는 행까지 합치면 가능한 경우는 `needs_check`이고, 합쳐도 모자라면 `unmet`입니다. 실적 행이 하나도 없으면 `needs_check`입니다. 금액은 `5천만원`, `3억원`, `1,200만원` 같은 표기에서 읽습니다.
-5. 종합: `unmet`이 하나라도 있으면 `not_recommend`, 없고 `needs_check`가 있으면 `conditional`, 모두 `met`이면 `recommend`입니다. 요건이 하나도 없으면 `conditional`입니다.
+5. 종합은 `reference`를 뺀 요건으로 정합니다(D36): `unmet`이 하나라도 있으면 `not_recommend`, 없고 `needs_check`가 있으면 `conditional`, 모두 `met`이면 `recommend`입니다. 요건이 없거나 참고 조건뿐이면 `conditional`입니다. 참고 조건이 있으면 이유 끝에 그 건수와 대표가 확인하라는 문장을 붙입니다.
 6. `disclaimer`에는 항상 "최종 판단은 대표가 합니다."가 들어갑니다.

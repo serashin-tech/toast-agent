@@ -94,7 +94,7 @@ gov-agent가 쓰고 daily-report가 읽는 날짜별 JSON 파일의 형식이다
 | `unreadable_files` | 변환하지 못한 첨부 `[{"name": ..., "url": ...}]` |
 | `requirements` | 요건 목록(아래) |
 
-requirements[]: `category`(참가자격, 계약방식, 평가방식, 예산, 제출마감 등), `text`(요건 내용), `verdict`(`met`, `unmet`, `needs_check`, `extract_only`), `profile_item`(대조한 프로필 항목 또는 null), `evidence`(`{"quote": 공고문 근거 문장, "location": 위치}`)
+requirements[]: `category`(참가자격, 계약방식, 평가방식, 예산, 제출마감 등), `text`(요건 내용), `verdict`(`met`, `unmet`, `needs_check`, `extract_only`, `reference`: 종류가 기타라 대조하지 않는 참고 조건, 종합 의견에 넣지 않음, D36), `profile_item`(대조한 프로필 항목 또는 null), `evidence`(`{"quote": 공고문 근거 문장, "location": 위치}`)
 
 ## settings
 
