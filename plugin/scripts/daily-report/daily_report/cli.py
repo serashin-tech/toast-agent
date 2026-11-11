@@ -52,10 +52,10 @@ def _build(args, now):
 
 
 def _sheet(args, transport):
-    """시트 웹 앱 요청 세 가지. 실패는 한 줄로 알리고 1을 돌려준다(다음 단계는 루틴이 이어 간다)."""
+    """시트 웹 앱 요청 네 가지. 실패는 한 줄로 알리고 1을 돌려준다(다음 단계는 루틴이 이어 간다)."""
     env = sheet.read_env(args.env_file)
     if args.cmd == "sheet-push":
-        rows = sheet.build_rows(args.results, inputs.parse_date(args.date))
+        rows = sheet.build_rows(args.state, inputs.parse_date(args.date))
         ok, reply = sheet.call(env, {"action": "upsert", "rows": rows}, transport)
         print(f"시트 기록 {len(rows)}행" if ok else f"시트 기록 실패: {reply}")
     elif args.cmd == "sheet-pull":
@@ -103,9 +103,9 @@ def main(argv=None, now=None, transport=None):
     bd.add_argument("--date", required=True)
     bd.add_argument("--sheet", required=True, help="Apps Script GET 응답을 저장한 JSON 파일({rows: [...]})")
     bd.add_argument("--out", required=True)
-    sp = sub.add_parser("sheet-push", help="그날 새 항목을 수집 이력 시트에 보낸다(마감 지난 행 제외)")
+    sp = sub.add_parser("sheet-push", help="로컬 원장의 마감 전 행을 수집 이력 시트에 보낸다(티켓 21, D29)")
     sp.add_argument("--date", required=True)
-    sp.add_argument("--results", required=True)
+    sp.add_argument("--state", default="state", help="gov-agent의 상태 폴더(ledger.json이 있는 곳)")
     sl = sub.add_parser("sheet-pull", help="시트의 마감 전 행을 받아 JSON으로 저장한다(현황판 입력)")
     sl.add_argument("--out", required=True)
     sm = sub.add_parser("send-mail", help="mail 명령이 만든 본문을 Apps Script로 보낸다")

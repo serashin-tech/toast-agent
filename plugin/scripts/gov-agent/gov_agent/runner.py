@@ -103,14 +103,23 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
     # 지원사업은 한콘진·중소기업 두 출처에 따로 올라와 날짜가 어긋날 수 있으므로, 같은 사업의 열쇠로도 노출을 본다.
     shown_groups = {e["group"] for e in ledger.values() if e.get("group") and e.get("first_shown")}
 
-    def check(source_id, it, group=None):
-        """(이미 보여 줬는가, 보여 준 뒤 내용이 바뀌었는가). 노출 판정의 정본은 로컬 원장이다(D13)."""
+    def check(source_id, it, row, group=None, alias_of=None):
+        """(이미 보여 줬는가, 보여 준 뒤 내용이 바뀌었는가). 노출 판정의 정본은 로컬 원장이다(D13).
+
+        실행 끝에 원장에 반영할 값(지문, 시트 행 필드, 같은 사업 열쇠, 대표 행 키)도 함께 적어 둔다.
+        """
         k = f"{source_id}:{it['id']}"
         fp = _fp(it)
-        touched[k] = (source_id, fp, group)
+        touched[k] = (source_id, fp, group, row, alias_of)
         e = ledger.get(k) or {}
         was_shown = bool(e.get("first_shown")) or (group is not None and group in shown_groups)
         return was_shown, was_shown and e.get("fp") not in (None, fp)
+
+    def row_of(kind, source, it, agency, price, matched):
+        """시트 '수집 이력'의 코드가 쓰는 열(티켓 21). 상태와 대표 메모는 시트가 가진다."""
+        return {"kind": kind, "source": source, "title": it["title"], "agency": agency or "", "price": price,
+                "deadline": _iso(it["deadline"]), "registered": _iso(it["posted_on"]), "url": it["url"],
+                "matched": ", ".join(matched)}
 
     r = res["bid"]
     for it in r["cands"]:
@@ -118,7 +127,7 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
         if not ok:
             r["excluded"] += 1
             continue
-        was_shown, changed = check("bid", it)
+        was_shown, changed = check("bid", it, row_of("bid", "bid", it, it["agency"], it["est_price"], matched))
         if was_shown:
             r["changed_shown"] += changed
             continue
@@ -130,7 +139,8 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
 
     r = res["outsource_cglink"]
     for it in r["cands"]:  # 한 달에 몇 건뿐이라 필터 없이 새 글을 모두 싣는다
-        was_shown, changed = check("outsource_cglink", it)
+        was_shown, changed = check("outsource_cglink", it,
+                                   row_of("outsource", "outsource_cglink", it, it["poster"], None, []))
         if was_shown:
             r["changed_shown"] += changed
             continue
@@ -151,7 +161,10 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
                 r["excluded"] += 1
     for main, origins, members in merge_grants(passed["grant_kocca"], passed["grant_bizinfo"]):
         group = "|".join(str(x) for x in grant_key(main))
-        flags = [check(s, m, group) for s, m in members]
+        matched = sorted({w for _, m in members for w in m["_matched"]}, key=main["title"].lower().find)
+        keys = [f"{s}:{m['id']}" for s, m in members]  # 첫 키가 대표 행(중소기업 쪽이 있으면 그쪽)
+        row = row_of("grant", origins[0] if len(origins) == 1 else "grant", main, main["agency"], None, matched)
+        flags = [check(s, m, row, group, None if i == 0 else keys[0]) for i, (s, m) in enumerate(members)]
         if any(f[0] for f in flags):  # 출처 하나라도 보여 줬으면 보여 준 것으로 본다
             for s in origins:
                 res[s]["changed_shown"] += any(f[1] for f in flags)
@@ -159,9 +172,7 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
         for s in origins:
             res[s]["included"] += 1
             res[s]["new"] += 1
-        matched = sorted({w for _, m in members for w in m["_matched"]}, key=main["title"].lower().find)
         dday = (main["deadline"] - run_date_d).days if main["deadline"] else None
-        keys = [f"{s}:{m['id']}" for s, m in members]
         items.append(_item(origins[0] if len(origins) == 1 else "grant", "grant", main, matched, keys, {
             "agency": main["agency"], "period_start": _iso(main["period_start"]),
             "period_end": _iso(main["deadline"]), "dday": dday, "category": main["category"],
@@ -187,10 +198,14 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"gov_{run_date_s}.json"
     path.write_text(text, encoding="utf-8")
-    for k, (sid, fp, group) in touched.items():  # 정상 수집한 소스의 항목만 원장에 반영한다
+    for k, (sid, fp, group, row, alias_of) in touched.items():  # 정상 수집한 소스의 항목만 원장에 반영한다
         if res[sid]["status"] != "ok":
             continue
         e = ledger.setdefault(k, {"first_seen": run_date_s, "last_changed": None, "first_shown": None, "fp": fp})
+        e.update(row)
+        e.pop("alias_of", None)
+        if alias_of:
+            e["alias_of"] = alias_of
         if group:
             e["group"] = group
         if e["fp"] != fp:

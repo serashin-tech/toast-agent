@@ -32,28 +32,50 @@ class SheetSync(ReportCase):
             code = main([*argv, "--env-file", str(self.env)], transport=app)
         return code, buf.getvalue()
 
-    def test_push_sends_new_open_rows_without_memo_and_with_registered_date(self):
-        def mutate(d):
-            d["items"][0]["deadline"] = "2026-11-04"  # 마감 지남: 보내지 않는다(D29)
-        data = self.put_today(mutate)
+    def ledger(self):
+        """gov-agent가 쓰는 로컬 원장 모양(티켓 21). 시트 행은 원장의 마감 전 행 전체다."""
+        row = {"kind": "bid", "source": "bid", "agency": "전주시", "price": 1, "registered": "2026-11-01",
+               "url": "https://g2b.test/x", "matched": "애니메이션", "first_shown": "2026-11-04", "fp": "f"}
+        state = self.tmp / "state"
+        state.mkdir()
+        (state / "ledger.json").write_text(json.dumps({
+            "bid:OPEN": {**row, "title": "열린 공고", "deadline": "2026-11-20"},
+            "bid:TODAY": {**row, "title": "오늘 마감", "deadline": "2026-11-05"},
+            "bid:PAST": {**row, "title": "지난 공고", "deadline": "2026-11-04"},
+            "grant_bizinfo:P1": {**row, "kind": "grant", "title": "지원사업", "deadline": "2026-12-01"},
+            "grant_kocca:K1": {**row, "kind": "grant", "title": "지원사업", "deadline": "2026-12-01",
+                               "alias_of": "grant_bizinfo:P1"},
+            "outsource_cglink:OLD": {**row, "kind": "outsource", "title": "오래된 글", "deadline": None,
+                                     "registered": "2026-09-01"},
+            "bid:LEGACY": {"first_seen": "2026-11-01", "first_shown": None, "fp": "f"},  # 행 필드 없는 옛 항목
+        }, ensure_ascii=False), encoding="utf-8")
+        return state
+
+    def push(self, app):
+        return self.cli(["sheet-push", "--date", "2026-11-05", "--state", str(self.ledger())], app)
+
+    def test_push_sends_every_open_ledger_row_without_memo(self):
         app = FakeApp()
-        code, _ = self.cli(["sheet-push", "--date", "2026-11-05", "--results", str(self.results)], app)
+        code, _ = self.push(app)
         self.assertEqual(code, 0)
         (url, payload), = app.calls
         self.assertEqual((url, payload["action"], payload["token"]), (URL, "upsert", TOKEN))
-        keys = [r["key"] for r in payload["rows"]]
-        self.assertNotIn(f"{data['items'][0]['source']}:{data['items'][0]['id']}", keys)
-        row = payload["rows"][0]
-        self.assertEqual(row["status"], "신규")
-        self.assertIn("registered", row)  # 등록일 열(D32)
-        self.assertNotIn("memo", row)  # 대표 메모 열은 건드리지 않는다
+        rows = {r["key"]: r for r in payload["rows"]}
+        self.assertEqual(sorted(rows), ["bid:OPEN", "bid:TODAY", "grant_bizinfo:P1"])  # 마감 지남·30일 지난 글·별칭 제외
+        self.assertEqual(rows["grant_bizinfo:P1"]["alt_keys"], ["grant_kocca:K1"])
+        self.assertEqual((rows["bid:OPEN"]["status"], rows["bid:OPEN"]["registered"]), ("신규", "2026-11-01"))
+        self.assertNotIn("memo", rows["bid:OPEN"])  # 대표 메모 열은 건드리지 않는다
 
-    def test_push_failure_is_reported_not_raised(self):
-        self.put_today()
-        code, out = self.cli(["sheet-push", "--date", "2026-11-05", "--results", str(self.results)], FakeApp(fail=True))
+    def test_push_failure_is_reported_and_the_rows_go_again_next_time(self):
+        code, out = self.push(FakeApp(fail=True))
         self.assertEqual(code, 1)
         self.assertIn("시트 기록 실패", out)
         self.assertNotIn(TOKEN, out)
+        import shutil
+        shutil.rmtree(self.tmp / "state")
+        app = FakeApp()
+        self.push(app)  # 원장이 정본이므로 다음 실행이 같은 행을 다시 보낸다
+        self.assertIn("bid:OPEN", [r["key"] for r in app.calls[0][1]["rows"]])
 
     def test_pull_saves_rows_for_the_board(self):
         rows = [{"key": "bid:R1", "kind": "bid", "title": "t", "status": "2차 검토 중"}]

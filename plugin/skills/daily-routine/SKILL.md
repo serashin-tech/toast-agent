@@ -8,7 +8,7 @@ description: 토스트 정부사업 에이전트의 매일 10:00 무인 루틴. 
 1. 수집: `GOV run --date TODAY --out results`
    - 인증키는 코드가 `.env`에서 읽는다. `.env`를 열거나 출력하지 않는다.
 2. 실행 기록 시작: `REPORT build --date TODAY --results results --out reports --settings settings --runs runs`
-3. 시트 기록: `REPORT sheet-push --date TODAY --results results`
+3. 시트 기록: `REPORT sheet-push --date TODAY --state state` (로컬 원장의 마감 전 행 전체를 보내므로, 어제 실패한 행도 오늘 다시 들어간다)
 4. 신규 알림 메일
    - `reports/artifact-url.txt`가 있으면 그 주소를 BOARD로 쓴다.
    - `REPORT mail --date TODAY --results results --out reports/mail-TODAY.json --board-url BOARD`

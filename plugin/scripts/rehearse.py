@@ -66,7 +66,7 @@ def rehearse(work):
             steps = [
                 ("수집", gov(["run", "--date", DATE, "--out", "results"], transport=net, environ={},
                             now=datetime(2026, 11, 11, 10, tzinfo=KST))),
-                ("시트 기록", report(["sheet-push", "--date", DATE, "--results", "results"], transport=app)),
+                ("시트 기록", report(["sheet-push", "--date", DATE, "--state", "state"], transport=app)),
                 ("메일 본문", report(["mail", "--date", DATE, "--results", "results", "--out", "reports/mail.json",
                                       "--board-url", "https://claude.ai/artifact/rehearsal"])),
                 ("메일 발송", report(["send-mail", "--mail", "reports/mail.json"], transport=app)),

@@ -48,6 +48,23 @@ class Ledger(Base):
         shown(self.out, "2026-11-05", ["grant_kocca:K1"])
         self.assertEqual(self.ids(self.day("2026-11-06", koccas=[k], bizinfos=[b])), [])
 
+    def test_ledger_keeps_sheet_row_fields(self):  # 티켓 21: 시트는 원장 기준으로 쓴다
+        self.day("2026-11-05", bids=[fx.bid("B1", "홍보 애니메이션", price=50000000, deadline="2026-11-30 18:00")])
+        e = json.loads((self.state / "ledger.json").read_text(encoding="utf-8"))["bid:B1"]
+        self.assertEqual({k: e[k] for k in ("kind", "source", "title", "price", "deadline")},
+                         {"kind": "bid", "source": "bid", "title": "홍보 애니메이션", "price": 50000000,
+                          "deadline": "2026-11-30"})
+        for k in ("agency", "registered", "url", "matched"):
+            self.assertIn(k, e)
+
+    def test_merged_grant_member_points_to_the_primary_row(self):
+        k = fx.kocca("K1", "애니메이션 제작 지원", end="2026-12-10")
+        b = fx.bizinfo("P1", "애니메이션 제작 지원", end="20261210")
+        self.day("2026-11-05", koccas=[k], bizinfos=[b])
+        ledger = json.loads((self.state / "ledger.json").read_text(encoding="utf-8"))
+        self.assertEqual(ledger["grant_kocca:K1"]["alias_of"], "grant_bizinfo:P1")
+        self.assertNotIn("alias_of", ledger["grant_bizinfo:P1"])
+
     def test_first_shown_date_is_not_overwritten(self):
         self.day("2026-11-05", bids=[fx.bid("B1", "홍보 애니메이션")])
         shown(self.out, "2026-11-05", ["bid:B1", "bid:UNKNOWN"])
