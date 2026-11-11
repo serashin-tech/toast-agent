@@ -51,7 +51,8 @@ def render_mail(run_date, agents, board_url=None, sheet_url=None):
         body = "".join(f'<li style="margin:0 0 8px">'
                        + ("<strong>[다시 알림: 검토를 요청하신 공고의 내용이 바뀌었습니다]</strong> " if it.get("renotify") else "")
                        + f'{link(it["title"], it["url"])}<br>'
-                       f'<span style="color:#5f6672">{_meta(it, run_date)}</span></li>' for it in its)
+                       + (f'<span>AI 요약: {esc(it["summary"])}</span><br>' if it.get("summary") else "")
+                       + f'<span style="color:#5f6672">{_meta(it, run_date)}</span></li>' for it in its)
         out.append(f'<h2 style="font-size:16px;margin:16px 0 8px">{esc(title)} {len(its)}건</h2>'
                    + (f"<ul>{body}</ul>" if its else p + "새 항목이 없습니다.</p>"))
     links = [link("입찰 현황판 열기", board_url) if board_url else "", link("수집 이력 시트 열기", sheet_url) if sheet_url else ""]

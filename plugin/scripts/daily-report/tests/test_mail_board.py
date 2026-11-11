@@ -48,6 +48,13 @@ class NewItemsMail(ReportCase):
         self.assertIn("ledger.json을 읽지 못해", html)
         self.assertLess(html.index("ledger.json"), html.index("입찰공고"))
 
+    def test_summary_is_labelled_as_ai_written(self):  # D33, US-08: 요약과 원문을 구분한다
+        def mutate(d):
+            d["items"][0]["summary"] = "홍보 애니메이션 <실적과 맞음>"
+        self.put_today(mutate)
+        html = self.mail()["html"]
+        self.assertIn("AI 요약: 홍보 애니메이션 &lt;실적과 맞음&gt;", html)
+
     def test_renotified_bid_is_marked(self):  # D18
         def mutate(d):
             d["items"][0]["renotify"] = True

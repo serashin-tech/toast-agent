@@ -4,8 +4,8 @@
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-11)
 
-- [ ] 결과 파일의 `summary`를 코드로 합치는 명령(Claude는 {공고번호: 요약} JSON만 씀)
-- [ ] 메일과 현황판에 요약 표시
-- [ ] daily-routine 스킬에 단계 추가
+- [x] 결과 파일의 `summary`를 코드로 합치는 명령(Claude는 {공고번호: 요약} JSON만 씀)
+- [x] 메일에 'AI 요약'으로 표시(현황판은 시트 행 기준이라 요약을 싣지 않음)
+- [x] daily-routine 스킬에 단계 추가

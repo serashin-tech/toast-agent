@@ -42,6 +42,29 @@ def read_env_file(path):
     return env
 
 
+SUMMARY_MAX = 120  # 메일 한 줄에 들어갈 길이
+
+
+def _summarize(result_path, input_path):
+    """관련도 한 줄 요약(D33)을 입찰공고에만 넣는다. 입력을 읽지 못하면 결과 파일을 건드리지 않고 1을 돌려준다."""
+    try:
+        summaries = json.loads(input_path.read_text(encoding="utf-8"))
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        if not isinstance(summaries, dict):
+            raise ValueError("객체가 아님")
+    except (OSError, ValueError) as e:
+        print(f"요약을 합치지 못했습니다({type(e).__name__}). 요약 없이 이어 갑니다.")
+        return 1
+    bids = {it["id"]: it for it in result.get("items") or [] if it.get("kind") == "bid"}
+    unknown = sorted(k for k in summaries if k not in bids)
+    for k, text in summaries.items():
+        if k in bids and isinstance(text, str) and text.strip():
+            bids[k]["summary"] = text.strip()[:SUMMARY_MAX]
+    result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"요약 {len(summaries) - len(unknown)}건을 넣었습니다." + (f" 결과에 없는 공고번호: {', '.join(unknown)}" if unknown else ""))
+    return 0
+
+
 def main(argv=None, transport=None, environ=None, now=None):
     ap = argparse.ArgumentParser(prog="gov_agent")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -62,9 +85,15 @@ def main(argv=None, transport=None, environ=None, now=None):
     b.add_argument("--eligibility", help="같은 공고의 제안 조건 검토 결과(eligibility 명령의 출력)")
     b.add_argument("--settings", default=DEFAULT_SETTINGS)
     b.add_argument("--out", help="브리프를 쓸 파일(없으면 표준출력). 보통 drafts/<공고번호>/brief.json")
+    sm = sub.add_parser("summarize", help="Claude가 쓴 {공고번호: 한 줄 요약} JSON을 결과 파일의 입찰공고 summary에 넣는다(D33)")
+    sm.add_argument("--result", required=True, help="하루치 결과 파일(results/gov_<날짜>.json)")
+    sm.add_argument("--input", required=True)
     for p in (e, b):
         p.add_argument("--source-text", help="첨부를 텍스트로 바꾼 폴더(.md·.txt). 주면 원문에 없는 인용은 확인필요가 된다")
     a = ap.parse_args(argv)
+
+    if a.cmd == "summarize":
+        return _summarize(Path(a.result), Path(a.input))
 
     data = None
     if a.cmd in ("brief", "eligibility"):
