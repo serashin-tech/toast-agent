@@ -47,6 +47,11 @@ class StatusNames(unittest.TestCase):
         code = (common.PLUGIN.parent / "apps-script" / "Code.gs").read_text(encoding="utf-8")
         self.assertIn("'신규'", code)
 
+    def test_apps_script_sends_only_whether_a_memo_exists(self):  # 관심사업은 메모 유무만 쓰고 내용은 싣지 않는다
+        code = (common.PLUGIN.parent / "apps-script" / "Code.gs").read_text(encoding="utf-8")
+        self.assertIn("has_memo", code)
+        self.assertIn("if (c !== 'memo')", code)
+
 
 if __name__ == "__main__":
     unittest.main()

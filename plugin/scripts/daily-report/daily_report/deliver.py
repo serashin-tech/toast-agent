@@ -1,8 +1,10 @@
-"""전달물 두 가지: 신규 알림 메일 본문(D30)과 입찰 현황판 HTML(D28). 모든 입력 문자열은 esc()를 거친다.
+"""전달물 두 가지: 신규 알림 메일 본문(D30)과 사업 현황판(D28, 설명서의 첫 탭). 모든 입력 문자열은 esc()를 거친다.
 
 메일은 메일 앱이 스크립트와 외부 CSS를 지우므로 인라인 스타일만 쓴다. 현황판은 공유될 수 있으므로
-대표 메모와 시트 주소를 싣지 않는다.
+대표 메모를 싣지 않는다. 시트 주소는 싣는다(시트 권한이 있는 계정만 열 수 있음, 2026-11-12 sera.shin 지시).
 """
+import pathlib
+
 from .inputs import parse_date
 from .render import SECTIONS, SOON_DAYS, days_left, dday, esc, failures, link, won
 
@@ -104,7 +106,7 @@ def render_mail(run_date, agents, board_url=None, sheet_url=None, changes=None, 
         empty = "" if broken else p + "새 항목이 없습니다.</p>"
         out.append(f'<h2 style="font-size:16px;margin:16px 0 8px">{esc(title)} {len(its)}건</h2>'
                    + note + (f"<ul>{body}</ul>" if its else empty))
-    links = [link("입찰 현황판 열기", board_url) if board_url else "", link("수집 이력 시트 열기", sheet_url) if sheet_url else ""]
+    links = [link("사업 현황판 열기", board_url) if board_url else "", link("수집 이력 시트 열기", sheet_url) if sheet_url else ""]
     if any(links):
         out.append(p + " · ".join(x for x in links if x) + "</p>")
     out.append("</div>")
@@ -119,32 +121,113 @@ def _rank(status):
     return len(REVIEWING)  # 모르는 값은 검토 중 바로 뒤에 둔다
 
 
-BOARD_CSS = """:root{color-scheme:light dark;--bg:#fff;--ink:#16181d;--muted:#5f6672;--line:#d4d8df;--link:#1a56c4}
-@media (prefers-color-scheme:dark){:root{--bg:#14161a;--ink:#f1f2f4;--muted:#a3aab6;--line:#3a3f48;--link:#8ab4ff}}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:%s;line-height:1.6;word-break:keep-all;overflow-wrap:break-word}
-main{max-width:640px;margin:0 auto;padding:16px}h1{font-size:20px}h2{font-size:16px;border-bottom:1px solid var(--line);padding-bottom:4px}
-ul{padding-left:18px}li{margin:0 0 10px}a{color:var(--link)}.m{color:var(--muted);font-size:14px}""" % FONT
+# 사업 현황판은 설명서(manual.html)의 첫 탭이다. 루틴이 시트 행으로 탭 내용을 채운 설명서 전체를 게시한다(D28 개정).
+MANUAL = pathlib.Path(__file__).with_name("manual.html")
+BOARD_MARK = "<!--BOARD-->"
 
 
-def render_board(run_date, rows):
-    """시트 행(Apps Script GET 응답의 rows)으로 입찰 현황판 HTML을 만든다. 마감 전 입찰공고만 싣는다."""
-    open_bids = []
+def _open_rows(rows, kind, run_date):
+    out = []
     for r in rows or []:
         d = parse_date(r.get("deadline")) if r.get("deadline") else None
-        if r.get("kind") == "bid" and (d is None or d >= run_date):
-            open_bids.append({**r, "_d": d})
+        if r.get("kind") == kind and (d is None or d >= run_date):
+            out.append({**r, "_d": d})
+    return out
+
+
+def _due(r, run_date):
+    return f"{esc(r['deadline'])} ({dday((r['_d'] - run_date).days)})" if r["_d"] else "마감일 없음"
+
+
+def _bid_tab(bids, run_date):
+    """입찰공고를 상태별로 묶는다. 검토 중인 상태가 맨 위, 같은 상태 안에서는 마감이 가까운 순."""
+    if not bids:
+        return "<p>마감 전인 입찰공고가 없습니다.</p>"
     groups = {}
-    for r in sorted(open_bids, key=lambda r: (_rank(r.get("status")), r["_d"] or run_date.max)):
+    for r in sorted(bids, key=lambda r: (_rank(r.get("status")), r["_d"] or run_date.max)):
         groups.setdefault(r.get("status") or "신규", []).append(r)
-    parts = [f"<h1>입찰 현황판</h1><p class=\"m\">{run_date.isoformat()} 기준 · 마감 전 입찰공고 {len(open_bids)}건</p>"]
-    if not open_bids:
-        parts.append("<p>마감 전인 입찰공고가 없습니다.</p>")
-    for status, rs in groups.items():
-        lis = "".join(
-            f"<li>{link(r.get('title'), r.get('url'))}<br><span class=\"m\">{esc(r.get('agency') or '')}"
-            + (f" · 마감 {esc(r['deadline'])} ({dday((r['_d'] - run_date).days)})" if r["_d"] else "")
-            + "</span></li>" for r in rs)
-        parts.append(f"<section><h2>{esc(status)} {len(rs)}건</h2><ul>{lis}</ul></section>")
-    return ("<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\">"
-            "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>입찰 현황판</title>"
-            f"<style>{BOARD_CSS}</style></head><body><main>{''.join(parts)}</main></body></html>")
+    return "".join(
+        f"<h3>{esc(status)} {len(rs)}건</h3><ul>"
+        + "".join(f'<li>{link(r.get("title"), r.get("url"))}<br><span class="m">{esc(r.get("agency") or "")}'
+                  f" · 마감 {_due(r, run_date)}</span></li>" for r in rs)
+        + "</ul>" for status, rs in groups.items())
+
+
+def _grant_tab(grants, run_date):
+    """지원사업 표. 날짜 기준(마감일·등록일)과 기간, 상태, 기관으로 거르고 등록일·마감일 머리를 눌러 정렬한다.
+    거르기와 정렬은 설명서의 스크립트가 움직인다. 처음 순서는 마감일 오름차순이다."""
+    if not grants:
+        return "<p>마감 전인 지원사업이 없습니다.</p>"
+    statuses = sorted({r.get("status") or "신규" for r in grants}, key=_rank)
+    opts = "".join(f'<option value="{esc(s)}">{esc(s)}</option>' for s in statuses)
+    agencies = sorted({r.get("agency") for r in grants if r.get("agency")})
+    agency_opts = "".join(f'<option value="{esc(a)}">{esc(a)}</option>' for a in agencies)
+    trs = []
+    for r in sorted(grants, key=lambda r: (r["_d"] is None, r["_d"] or run_date)):
+        reg = parse_date(r.get("registered")) if r.get("registered") else None
+        trs.append(f'<tr data-deadline="{esc(r["_d"] or "")}" data-registered="{esc(reg or "")}" data-status="{esc(r.get("status") or "신규")}" '
+                   f'data-agency="{esc(r.get("agency") or "")}"><td>{esc(r.get("status") or "신규")}</td><td>{link(r.get("title"), r.get("url"))}</td>'
+                   f'<td>{esc(r.get("agency") or "")}</td><td>{esc(reg or "")}</td><td>{_due(r, run_date)}</td></tr>')
+    sort_th = lambda key, name, order: (f'<th aria-sort="{order}"><button class="sortbtn" type="button" data-sort="{key}">'
+                                        f'{name}<span class="si" aria-hidden="true"></span></button></th>')
+    return ('<div class="bfilter">'
+            '<label>날짜 기준<select class="inp" id="bf-basis"><option value="deadline">마감일</option><option value="registered">등록일</option></select></label>'
+            '<label>시작<input class="inp" type="date" id="bf-from"></label>'
+            '<label>끝<input class="inp" type="date" id="bf-to"></label>'
+            f'<label>상태<select class="inp" id="bf-status"><option value="">전체</option>{opts}</select></label>'
+            f'<label>기관<select class="inp" id="bf-agency"><option value="">전체</option>{agency_opts}</select></label>'
+            '<button class="ebtn" type="button" id="bf-reset">초기화</button>'
+            f'<span class="small" id="bf-count" aria-live="polite">{len(grants)}건 표시</span></div>'
+            '<div class="scroll"><table class="tbl grant-tbl"><thead><tr><th>상태</th><th>사업명</th><th>기관</th>'
+            + sort_th("registered", "등록일", "none") + sort_th("deadline", "마감일", "ascending") + "</tr></thead>"
+            f'<tbody>{"".join(trs)}<tr class="bf-none" hidden><td colspan="5">조건에 맞는 지원사업이 없습니다.</td></tr></tbody></table></div>')
+
+
+def _watched(r):
+    """관심사업: 대표가 상태를 바꿨거나(체크) 메모를 남긴 행. '관련 없음'은 관심이 없다는 뜻이라 뺀다(2026-11-12 sera.shin 지시)."""
+    status = r.get("status") or "신규"
+    return status != "관련 없음" and (status != "신규" or _watched_memo(r))
+
+
+def _watch_tab(rows, run_date):
+    """마감 전 관심사업(입찰·지원) 표. 마감이 가까운 순. 메모는 있는지만 보이고 내용은 싣지 않는다."""
+    if not rows:
+        return "<p>마감 전인 관심사업이 없습니다. 시트에서 상태를 바꾸거나 메모를 남긴 사업이 여기에 모입니다.</p>"
+    kind = {"bid": "입찰", "grant": "지원"}
+    trs = "".join(
+        f'<tr><td>{esc(r.get("status") or "신규")}</td><td>{_due(r, run_date)}</td><td>{link(r.get("title"), r.get("url"))}</td>'
+        f'<td>{kind[r["kind"]]}</td><td>{esc(r.get("agency") or "")}</td><td>{"메모 있음" if _watched_memo(r) else ""}</td></tr>'
+        for r in sorted(rows, key=lambda r: (r["_d"] is None, r["_d"] or run_date)))
+    return ('<p class="small" style="padding:12px 18px 0;margin:0">시트에서 상태를 바꾸거나 메모를 남긴 마감 전 사업. 메모 내용은 시트에서 확인.</p>'
+            '<div class="scroll"><table class="tbl board-tbl"><thead><tr><th>상태</th><th>마감일</th><th>사업명</th><th>종류</th><th>기관</th><th>메모</th></tr></thead>'
+            f"<tbody>{trs}</tbody></table></div>")
+
+
+def _watched_memo(r):
+    return r.get("has_memo") is True or str(r.get("has_memo")).lower() == "true"
+
+
+def render_board(run_date, rows, sheet_url=None):
+    """시트 행(Apps Script 응답의 rows)으로 사업 현황판 탭을 채운 설명서 HTML을 만든다. 민간 외주 글은 싣지 않는다."""
+    bids, grants = _open_rows(rows, "bid", run_date), _open_rows(rows, "grant", run_date)
+    watch = [r for r in bids + grants if _watched(r)]
+    sheet = (f"수집 이력 시트: {link('시트 열기', sheet_url)} (권한이 있는 Google 계정으로만 열림). "
+             "마감이 지난 기존 기록은 시트의 '지난 공고' 탭에서 확인." if sheet_url
+             else "수집 이력 시트 주소가 설정되지 않았습니다(작업 폴더 .env의 SHEET_URL).")
+    tab = lambda k, name, n, on: (f'<button class="subtab" role="tab" type="button" id="bt-{k}" aria-controls="bp-{k}" '
+                                  f'aria-selected="{"true" if on else "false"}">{name} <span class="n">{n}</span></button>')
+    panel = ("<!--board-start--><section><h2>사업 현황판</h2>"
+             f'<p class="sub">{run_date.isoformat()} 기준 · 마감 전 입찰사업 {len(bids)}건 · 지원사업 {len(grants)}건 · 관심사업 {len(watch)}건. '
+             "10시 루틴과 30분 검토 루틴이 시트를 읽어 다시 게시함(시트에서 바꾼 상태는 최대 30분 늦게 보임).</p>"
+             f'<p class="sub">{sheet}</p></section>'
+             '<section class="subwrap"><div class="subtabs" role="tablist" aria-label="사업 종류">'
+             + tab("bid", "입찰사업", len(bids), True) + tab("grant", "지원사업", len(grants), False)
+             + tab("watch", "관심사업", len(watch), False) + "</div>"
+             f'<div class="setcard blist" role="tabpanel" id="bp-bid" aria-labelledby="bt-bid">{_bid_tab(bids, run_date)}</div><!--bp-bid-->'
+             f'<div class="setcard" role="tabpanel" id="bp-grant" aria-labelledby="bt-grant" hidden>{_grant_tab(grants, run_date)}</div><!--bp-grant-->'
+             f'<div class="setcard" role="tabpanel" id="bp-watch" aria-labelledby="bt-watch" hidden>{_watch_tab(watch, run_date)}</div><!--bp-watch-->'
+             "</section><!--board-end-->")
+    manual = MANUAL.read_text(encoding="utf-8")
+    if BOARD_MARK not in manual:
+        raise ValueError("manual.html에 사업 현황판 자리(<!--BOARD-->)가 없습니다")
+    return manual.replace(BOARD_MARK, panel, 1)

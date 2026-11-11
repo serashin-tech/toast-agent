@@ -103,10 +103,11 @@ def main(argv=None, now=None, transport=None):
     m.add_argument("--sheet-url", help="없으면 --env-file의 SHEET_URL을 쓴다")
     m.add_argument("--env-file", default=".env")
     m.add_argument("--settings", help="설정 폴더. 주면 최근 7일 설정 변경과 전날 대비 건수를 메일에 싣는다(D35)")
-    bd = sub.add_parser("board", help="시트 응답 JSON으로 입찰 현황판 HTML을 만든다(D28)")
+    bd = sub.add_parser("board", help="시트 응답 JSON으로 사업 현황판 탭을 채운 설명서 HTML을 만든다(D28)")
     bd.add_argument("--date", required=True)
     bd.add_argument("--sheet", required=True, help="Apps Script GET 응답을 저장한 JSON 파일({rows: [...]})")
     bd.add_argument("--out", required=True)
+    bd.add_argument("--env-file", default=".env", help="수집 이력 시트 주소(SHEET_URL)를 읽는 곳")
     lk = sub.add_parser("lock", help="daily·review 루틴이 함께 쓰는 잠금(티켓 23). 잡지 못하면 1을 돌려준다")
     lk.add_argument("action", choices=["acquire", "release"])
     lk.add_argument("--runs", required=True)
@@ -149,7 +150,7 @@ def main(argv=None, now=None, transport=None):
                               ensure_ascii=False)
         else:
             rows = json.loads(pathlib.Path(args.sheet).read_text(encoding="utf-8")).get("rows") or []
-            text = deliver.render_board(run_date, rows)
+            text = deliver.render_board(run_date, rows, sheet.read_env(args.env_file).get("SHEET_URL"))
         out = pathlib.Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text, encoding="utf-8")

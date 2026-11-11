@@ -1,6 +1,6 @@
 # daily-report
 
-에이전트가 남긴 날짜별 결과 파일(`docs/result-format.md`, format_version 1)과 수집 이력 시트를 읽어, 대표에게 가는 신규 알림 메일 본문과 입찰 현황판 HTML을 만들고, 시트 연동과 실행 기록을 맡습니다. Python 3.13과 표준 라이브러리만 씁니다. 네트워크는 시트 웹 앱(Apps Script)을 부르는 명령만 씁니다. 명세는 `.scratch/daily-report/spec.md`입니다.
+에이전트가 남긴 날짜별 결과 파일(`docs/result-format.md`, format_version 1)과 수집 이력 시트를 읽어, 대표에게 가는 신규 알림 메일 본문과 사업 현황판 HTML을 만들고, 시트 연동과 실행 기록을 맡습니다. Python 3.13과 표준 라이브러리만 씁니다. 네트워크는 시트 웹 앱(Apps Script)을 부르는 명령만 씁니다. 명세는 `.scratch/daily-report/spec.md`입니다.
 
 ## 실행 방법
 

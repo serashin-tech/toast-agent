@@ -3,7 +3,7 @@
  *
  * 요청(POST JSON, 모두 token 필요):
  *   upsert {rows}        행 추가·갱신. 코드가 쓰는 열만 갱신하고 '상태'와 '대표 메모'는 건드리지 않는다.
- *   rows                 '수집 이력'의 행을 돌려준다. 대표 메모는 돌려주지 않는다.
+ *   rows                 '수집 이력'의 행을 돌려준다. 대표 메모는 내용 대신 있는지만(has_memo) 돌려준다(관심사업).
  *   status {key, status} 상태 칸을 바꾼다(review-requests가 씀).
  *   mail {subject, html} 대표에게 메일을 보낸다(주소는 스크립트 속성에만 둔다).
  * 시간 트리거 cleanup(): 마감 지난 행을 정리하고, 검토 기록이 있는 행은 '지난 공고' 탭으로 옮긴다(D29, D34).
@@ -96,6 +96,7 @@ function readRows_() {
   return values_(sheet_(SHEET)).map(r => {
     const o = {};
     COLS.forEach((c, j) => { if (c !== 'memo') o[c] = String(r[j]); });
+    o.has_memo = String(r[COLS.indexOf('memo')]).trim() !== '';
     return o;
   });
 }
