@@ -1,8 +1,8 @@
-Status: ready-for-agent (구축은 11/13부터, H16)
+Status: ready-for-agent (구축은 2026-11-10 시작(H16-1). 남은 일은 05·09·10·12·16의 사람 확인과, 그 결과를 기다리는 08·11·15·17의 실제 실행 확인)
 Type: spec
 Feature: harness (정부사업 에이전트 하네스: 플러그인, 저장소, 검사)
 작성일: 2026-11-09
-근거: `.scratch/harness/map.md`의 결정 H1~H16, `docs/decisions.md`의 D5·D11·D13·D19~D30, 상위 PRD V1.8 §7-2, OpenAI「하네스 엔지니어링: 에이전트 우선 세계에서 Codex 활용하기」(2026-02-11)
+근거: `.scratch/harness/map.md`의 결정 H1~H18, `docs/decisions.md`의 D5·D11·D13·D19~D30, 상위 PRD V1.8 §7-2, OpenAI「하네스 엔지니어링: 에이전트 우선 세계에서 Codex 활용하기」(2026-02-11)
 
 ## Problem Statement
 

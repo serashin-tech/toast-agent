@@ -10,9 +10,9 @@ python -m gov_agent eligibility --input 요건.json [--settings <설정 폴더>]
 python -m gov_agent brief --input 신호.json [--eligibility 검토결과.json] [--settings <설정 폴더>] [--out brief.json]
 ```
 
-- `brief`는 2차 검토(시연 판정)입니다. 입력 형식과 판정 규칙은 `docs/demo-brief-input.md`, 공고 1건을 데모까지 처리하는 절차는 작업 루트의 `DEMO.md`입니다.
+- `brief`는 2차 검토(시연 판정)입니다. 입력 형식과 판정 규칙은 `docs/demo-brief-input.md`입니다. 공고 1건의 2차 검토 절차는 `review-requests` 스킬, 1차 시연 데모 절차는 `make-demo` 스킬입니다.
 
-- 기본 설정 폴더는 `gov-agent/settings`, 기본 상태 폴더는 `gov-agent/state`, 기본 `.env`는 작업 루트의 `.env`입니다.
+- 기본 설정 폴더는 작업 폴더의 `settings`, 기본 상태 폴더는 작업 폴더의 `state`, 기본 `.env`는 작업 폴더의 `.env`입니다(현재 폴더 기준).
 - 인증키는 환경변수 `DATA_GO_KR_SERVICE_KEY` 또는 `.env`(`KEY=값` 형식)에서만 읽습니다. 환경변수가 `.env`보다 우선합니다. 작업 루트의 `.env.example`을 복사해 채웁니다. 키는 결과 파일, 상태 파일, 오류 메시지에 남지 않습니다.
 - CGLink RSS(`https://cglink.com/jobsOffer/rss`)는 인증키 없이 읽으므로, 키가 없는 날에도 이 소스는 수집됩니다.
 - 한콘진 요청 주소는 `KOCCA_API_URL`에 넣습니다. 비어 있으면 그 소스만 `format` 오류로 실패하고 나머지는 수집합니다. 입찰공고와 중소기업 지원사업의 요청 주소는 기본값이 있으며, 실제 응답을 확인한 뒤 바꿔야 하면 `BID_API_URL`, `BIZINFO_API_URL`로 덮어씁니다.

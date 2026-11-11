@@ -6,7 +6,13 @@
 
 1. Claude 데스크톱의 Cowork에서 Customize > Plugins > Add marketplace로 이 저장소(`serashin-tech/toast-agent`, 비공개)를 추가하고 `toast-agent` 플러그인을 설치합니다. 비공개 저장소를 받지 못하면 저장소를 clone한 뒤 `plugin/` 폴더를 플러그인 파일로 업로드합니다(H14).
 2. 작업 폴더(예: `07_Implementation`)를 Cowork에 연결하고, 그 폴더에 `settings/`(플러그인의 `scripts/settings-template/`을 복사해 채움)와 `.env`(`.env.example` 참고)를 둡니다.
-3. 예약 작업을 만듭니다: 평일 10:00에 `daily-routine`, 09~18시 30분마다 `review-requests`.
+3. Google 시트에 Apps Script를 붙이고 웹 앱 주소와 토큰을 `.env`에 넣습니다(`apps-script/README.md`).
+4. 예약 작업을 만듭니다: 평일 10:00에 `/toast-agent:daily-routine`, 09~18시 30분마다 `/toast-agent:review-requests`.
+5. 예약 작업마다 **지금 실행**으로 한 번 돌려 권한 확인 창을 띄우고, 뜨는 도구마다 "항상 허용"을 고릅니다. 이후 무인 실행은 같은 도구를 자동으로 승인합니다.
+6. 대표 메일함에 신규 알림 메일이 오고, 입찰 현황판 주소가 휴대폰 Claude 앱에서도 열리는지 확인합니다.
+7. 대표 PC의 절전을 막습니다(노트북이면 덮개를 닫지 않음). 예약 작업은 PC가 켜져 있고 Claude 데스크톱이 실행 중일 때만 돌고, PC가 꺼져 있던 날은 도착률에서 '미실행'으로 셉니다.
+
+대표용 설명서는 `docs/manual/toast-agent-manual.html`이며, artifact로 게시해 전달합니다(`.scratch/manual/spec.md`).
 
 ## 개발
 

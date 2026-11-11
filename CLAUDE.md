@@ -5,7 +5,7 @@
 ## 먼저 읽을 것
 
 - 구조와 실행 흐름: `ARCHITECTURE.md`
-- 결정(D1~D34)·요구사항·리스크: `docs/decisions.md`. 하네스 결정(H1~H16): `.scratch/harness/map.md`
+- 결정(D1~D34)·요구사항·리스크: `docs/decisions.md`. 하네스 결정(H1~H18): `.scratch/harness/map.md`
 - 용어: `CONTEXT.md`. 이 용어로 이름을 짓는다
 - 되돌리기 어려운 결정의 근거: `docs/adr/`
 - 명세와 이슈: `.scratch/<기능>/spec.md`, `.scratch/<기능>/issues/NN-*.md` (규칙은 `docs/agents/issue-tracker.md`, 라벨은 `docs/agents/triage-labels.md`)
