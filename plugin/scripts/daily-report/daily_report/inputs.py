@@ -79,7 +79,9 @@ def _normalize(raw, agent, run_date):
         e["requirements"] = [_pick(r, _REQ_KEYS) for r in _list(e["requirements"] or [])]
         e["unreadable_files"] = [_pick(f, ("name", "url")) for f in _list(e["unreadable_files"] or [])]
         elig.append(e)
-    return {"agent": agent, "ok": True, "error": None, "sources": sources, "items": items, "eligibility": elig}
+    warnings = [str(w) for w in _list(raw.get("warnings") or [])]  # 2026-11-11 추가: 숨은 실패 알림(티켓 22)
+    return {"agent": agent, "ok": True, "error": None, "sources": sources, "items": items, "eligibility": elig,
+            "warnings": warnings}
 
 
 def load_agent(results_dir, agent, run_date):

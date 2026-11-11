@@ -37,6 +37,10 @@ def render_mail(run_date, agents, board_url=None, sheet_url=None):
         out.append(f'<div style="border:1px solid #c62828;padding:8px 12px;margin:0 0 16px">'
                    f"<strong>오늘 수집하지 못한 소스</strong><ul>{lis}</ul>"
                    "이 소스에 새 공고가 없다는 뜻이 아닙니다.</div>")
+    warns = [w for a in agents if a["ok"] for w in a.get("warnings") or []]
+    if warns:
+        out.append('<div style="border:1px solid #b26a00;padding:8px 12px;margin:0 0 16px"><strong>확인이 필요한 점</strong>'
+                   f"<ul>{''.join(f'<li>{esc(w)}</li>' for w in warns)}</ul></div>")
     if not any(a["ok"] for a in agents):
         out.append(p + "오늘 결과 파일을 확인하지 못했습니다. 실행 기록을 확인해 주십시오.</p>")
     changed = sum(s.get("changed_shown_count") or 0 for a in agents if a["ok"] for s in a["sources"])

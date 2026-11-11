@@ -56,6 +56,9 @@ def _sheet(args, transport):
     env = sheet.read_env(args.env_file)
     if args.cmd == "sheet-push":
         rows = sheet.build_rows(args.state, inputs.parse_date(args.date))
+        if rows is None:
+            print("시트 기록 실패: 로컬 원장(state/ledger.json)을 읽지 못했습니다")
+            return 1
         ok, reply = sheet.call(env, {"action": "upsert", "rows": rows}, transport)
         print(f"시트 기록 {len(rows)}행" if ok else f"시트 기록 실패: {reply}")
     elif args.cmd == "sheet-pull":
@@ -103,6 +106,11 @@ def main(argv=None, now=None, transport=None):
     bd.add_argument("--date", required=True)
     bd.add_argument("--sheet", required=True, help="Apps Script GET 응답을 저장한 JSON 파일({rows: [...]})")
     bd.add_argument("--out", required=True)
+    st = sub.add_parser("record-step", help="메일 밖 단계(sheet, board 등)의 성패를 그날 daily 줄에 남긴다(티켓 22)")
+    st.add_argument("--runs", required=True)
+    st.add_argument("--date", required=True)
+    st.add_argument("--step", required=True)
+    st.add_argument("--ok", required=True, choices=["true", "false"])
     sp = sub.add_parser("sheet-push", help="로컬 원장의 마감 전 행을 수집 이력 시트에 보낸다(티켓 21, D29)")
     sp.add_argument("--date", required=True)
     sp.add_argument("--state", default="state", help="gov-agent의 상태 폴더(ledger.json이 있는 곳)")
@@ -137,6 +145,9 @@ def main(argv=None, now=None, transport=None):
         out = pathlib.Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text, encoding="utf-8")
+        return 0
+    if args.cmd == "record-step":
+        runs.record_step(args.runs, args.date, args.step, args.ok == "true")
         return 0
     if args.cmd == "record-publish":
         runs.record_publish(args.runs, args.date, args.at, args.ok == "true", results_dir=args.results)

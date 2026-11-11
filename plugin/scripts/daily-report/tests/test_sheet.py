@@ -77,6 +77,15 @@ class SheetSync(ReportCase):
         self.push(app)  # 원장이 정본이므로 다음 실행이 같은 행을 다시 보낸다
         self.assertIn("bid:OPEN", [r["key"] for r in app.calls[0][1]["rows"]])
 
+    def test_unreadable_ledger_fails_instead_of_sending_nothing(self):  # 티켓 22
+        state = self.tmp / "state"
+        state.mkdir()
+        (state / "ledger.json").write_text("{broken", encoding="utf-8")
+        app = FakeApp()
+        code, out = self.cli(["sheet-push", "--date", "2026-11-05", "--state", str(state)], app)
+        self.assertEqual((code, app.calls), (1, []))
+        self.assertIn("원장", out)
+
     def test_pull_saves_rows_for_the_board(self):
         rows = [{"key": "bid:R1", "kind": "bid", "title": "t", "status": "2차 검토 중"}]
         out_file = self.tmp / "sheet.json"

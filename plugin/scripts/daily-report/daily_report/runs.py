@@ -47,24 +47,43 @@ def _on_time(run_date, published_at, deadline):
 
 
 def write_shown(results_dir, date_s):
-    """그날 결과 파일에 실린 항목의 원장 키를 노출 기록(shown_<날짜>.json)으로 쓴다. 반환: 키 개수.
+    """그날 결과 파일에 실린 항목의 원장 키를 노출 기록(shown_<날짜>.json)으로 쓴다. 반환: (키 개수, 읽지 못한 파일 수).
 
     병합한 지원사업은 출처 키 둘을 모두 담는다(gov가 항목의 keys에 넣어 둔다). keys가 없는 옛 파일은 source:id를 쓴다.
     """
     results_dir = pathlib.Path(results_dir)
-    keys = []
+    keys, unreadable = [], 0
     for p in sorted(results_dir.glob(f"*_{date_s}.json")):
         if p.name.startswith("shown_"):
             continue
         try:
             items = json.loads(p.read_text(encoding="utf-8")).get("items") or []
         except (OSError, ValueError, AttributeError):
+            unreadable += 1
             continue
         for it in items:
             keys += it.get("keys") or [f"{it.get('source')}:{it.get('id')}"]
     (results_dir / f"shown_{date_s}.json").write_text(json.dumps({"date": date_s, "keys": keys}, ensure_ascii=False),
                                                       encoding="utf-8")
-    return len(keys)
+    return len(keys), unreadable
+
+
+def _daily_line(records, date_s):
+    """그날 daily 루틴의 마지막 줄 번호. 없으면 새로 만든다. review 줄에는 붙이지 않는다."""
+    idx = max((i for i, r in enumerate(records)
+               if r.get("date") == date_s and r.get("routine", "daily") == "daily"), default=None)
+    if idx is None:
+        records.append({"date": date_s, "routine": "daily", "report_ok": None})
+        idx = len(records) - 1
+    return idx
+
+
+def record_step(runs_dir, date_s, step, ok):
+    """시트 기록, 현황판 게시처럼 메일 밖 단계의 성패를 그날 daily 줄의 steps에 남긴다(티켓 22)."""
+    records = load_runs(runs_dir)
+    idx = _daily_line(records, date_s)
+    records[idx].setdefault("steps", {})[step] = ok
+    _save(runs_dir, records)
 
 
 def record_publish(runs_dir, date_s, at_iso, ok, deadline=DEADLINE, results_dir=None):
@@ -73,15 +92,14 @@ def record_publish(runs_dir, date_s, at_iso, ok, deadline=DEADLINE, results_dir=
     review 루틴의 줄에는 붙이지 않는다. 성공했고 results_dir가 있으면 노출 기록도 쓴다.
     """
     records = load_runs(runs_dir)
-    idx = max((i for i, r in enumerate(records)
-               if r.get("date") == date_s and r.get("routine", "daily") == "daily"), default=None)
-    if idx is None:
-        records.append({"date": date_s, "routine": "daily", "report_ok": None})
-        idx = len(records) - 1
+    idx = _daily_line(records, date_s)
     late = not _on_time(date.fromisoformat(date_s), at_iso, deadline)
     records[idx].update(published_ok=ok, published_at=at_iso, publish_late=late)
     if ok and results_dir:
-        records[idx]["shown_count"] = write_shown(results_dir, date_s)
+        count, unreadable = write_shown(results_dir, date_s)
+        records[idx]["shown_count"] = count
+        if unreadable:
+            records[idx]["shown_unreadable"] = unreadable
     _save(runs_dir, records)
 
 

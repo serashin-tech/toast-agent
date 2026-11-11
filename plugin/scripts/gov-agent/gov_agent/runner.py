@@ -31,24 +31,38 @@ def _load_state(path):
         return {"sources": {}, "calls": {}}
 
 
-def _load_ledger(state_dir, out_dir):
-    """로컬 원장(IM-09)을 읽고, 결과 폴더의 노출 기록(shown_*.json)으로 첫 노출일을 채운다.
+def _load_ledger(state_dir, out_dir, run_date_s):
+    """로컬 원장(IM-09)을 읽고, 결과 폴더의 노출 기록(shown_*.json)으로 첫 노출일을 채운다. 반환: (원장, 경고 목록).
 
     이미 채운 첫 노출일은 바꾸지 않으므로 같은 노출 기록을 여러 번 읽어도 결과가 같다. 원장에 없는 키는 무시한다.
+    원장 파일이 깨져 있으면 덮어쓰지 않도록 옆에 보관하고 경고를 남긴다(불변 규칙 9).
     """
+    warnings = []
+    path = state_dir / "ledger.json"
     try:
-        ledger = json.loads((state_dir / "ledger.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        ledger = json.loads(path.read_text(encoding="utf-8"))
+    except OSError:
         ledger = {}
+    except ValueError:
+        kept = state_dir / f"ledger.broken-{run_date_s}.json"
+        n = 1
+        while kept.exists():
+            n += 1
+            kept = state_dir / f"ledger.broken-{run_date_s}-{n}.json"
+        path.rename(kept)
+        ledger = {}
+        warnings.append(f"ledger.json을 읽지 못해 원장을 새로 시작했습니다(원래 파일은 {kept.name}로 보관). "
+                        "어제까지 보여 준 항목이 다시 나올 수 있습니다.")
     for p in sorted(Path(out_dir).glob("shown_*.json")):
         try:
             data = json.loads(p.read_text(encoding="utf-8"))
         except (OSError, ValueError):
+            warnings.append(f"노출 기록 {p.name}을 읽지 못했습니다. 그날 보여 준 항목이 다시 나올 수 있습니다.")
             continue
         for k in data.get("keys") or []:
             if k in ledger and not ledger[k].get("first_shown"):
                 ledger[k]["first_shown"] = data.get("date")
-    return ledger
+    return ledger, warnings
 
 
 def _fetch(src, transport, key, state, env, now, run_date_s, call_budget):
@@ -111,7 +125,7 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
 
     cfg, problems, files = st.load_all(settings_dir, state_dir / "last_good_settings")
     res = {s.ID: _fetch(s, transport, key, state, env, now, run_date_s, call_budget) for s in ALL}
-    ledger = _load_ledger(state_dir, out_dir)
+    ledger, warnings = _load_ledger(state_dir, out_dir, run_date_s)
     requested = _requested_keys(sheet_rows)
     touched, items = {}, []
 
@@ -207,6 +221,7 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
 
     result = {"format_version": FORMAT_VERSION, "agent": "gov", "run_date": run_date_s,
               "generated_at": now.isoformat(), "sources": sources, "items": items, "eligibility": [],
+              "warnings": warnings,
               "settings": {"fallback_used": bool(problems), "fallback_reason": "; ".join(problems) or None,
                            "files": files}}
     text = c.scrub(json.dumps(result, ensure_ascii=False, indent=2), key)

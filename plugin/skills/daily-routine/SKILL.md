@@ -10,7 +10,7 @@ description: 토스트 정부사업 에이전트의 매일 10:00 무인 루틴. 
    - `GOV run --date TODAY --out results --sheet-rows reports/sheet-before-TODAY.json` (시트를 못 받았으면 `--sheet-rows`를 뺀다). 검토를 요청한 입찰공고의 내용이 바뀌었으면 다시 실린다(D18).
    - 인증키는 코드가 `.env`에서 읽는다. `.env`를 열거나 출력하지 않는다.
 2. 실행 기록 시작: `REPORT build --date TODAY --results results --out reports --settings settings --runs runs`
-3. 시트 기록: `REPORT sheet-push --date TODAY --state state` (로컬 원장의 마감 전 행 전체를 보내므로, 어제 실패한 행도 오늘 다시 들어간다)
+3. 시트 기록: `REPORT sheet-push --date TODAY --state state` (로컬 원장의 마감 전 행 전체를 보내므로, 어제 실패한 행도 오늘 다시 들어간다). 종료 코드로 `REPORT record-step --runs runs --date TODAY --step sheet --ok true|false`를 남긴다.
 4. 신규 알림 메일
    - `reports/artifact-url.txt`가 있으면 그 주소를 BOARD로 쓴다.
    - `REPORT mail --date TODAY --results results --out reports/mail-TODAY.json --board-url BOARD`
@@ -20,6 +20,7 @@ description: 토스트 정부사업 에이전트의 매일 10:00 무인 루틴. 
 6. 입찰 현황판
    - `REPORT sheet-pull --out reports/sheet-TODAY.json` 후 `REPORT board --date TODAY --sheet reports/sheet-TODAY.json --out reports/board.html`
    - Artifact 도구로 `reports/board.html`을 게시한다. **capabilities는 선언하지 않는다.** `reports/artifact-url.txt`가 있으면 그 주소를 url로 넘겨 같은 주소에 다시 게시하고, 없으면 새로 게시한 뒤(icon은 board) 받은 주소를 그 파일에 한 줄로 저장한다.
+   - 게시 결과를 `REPORT record-step --runs runs --date TODAY --step board --ok true|false`로 남긴다. 현황판 결과는 11시 도착 판정에 쓰지 않는다(D31).
 7. 끝. 한 줄로 보고한다: 성공한 소스와 실패한 소스(사유 종류), 시트 기록, 메일 발송, 현황판 게시 결과.
 
 하지 않는 일: `settings/`를 고치지 않는다. 2차 검토와 데모는 이 루틴에서 하지 않는다. 관련도 한 줄 요약(D33)은 아직 코드가 없어 건너뛴다(티켓 18).

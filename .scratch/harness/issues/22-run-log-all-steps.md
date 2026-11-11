@@ -4,10 +4,10 @@
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-11)
 
 출처: 2026-11-10 코드 리뷰(표준·명세 두 축)
 
-- [ ] record-publish 외에 단계 결과를 남기는 명령 또는 인자
-- [ ] 깨진 ledger.json을 덮어쓰지 않고 보관·보고
-- [ ] build_rows·write_shown이 읽지 못한 파일 수를 알림
+- [x] record-publish 외에 단계 결과를 남기는 명령 또는 인자
+- [x] 깨진 ledger.json을 덮어쓰지 않고 보관·보고
+- [x] build_rows·write_shown이 읽지 못한 파일 수를 알림

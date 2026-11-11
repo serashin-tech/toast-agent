@@ -73,6 +73,15 @@ class Ledger(Base):
                          sheet_rows=sheet)
         self.assertEqual(self.ids(r), [])
 
+    def test_broken_ledger_is_kept_aside_and_reported(self):  # 티켓 22, 불변 규칙 9
+        self.state.mkdir(parents=True, exist_ok=True)
+        (self.state / "ledger.json").write_text("{broken", encoding="utf-8")
+        r = self.day("2026-11-05", bids=[fx.bid("B1", "홍보 애니메이션")])
+        self.assertTrue(any("ledger.json" in w for w in r["warnings"]))
+        kept = list(self.state.glob("ledger.broken-*.json"))
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0].read_text(encoding="utf-8"), "{broken")
+
     def test_ledger_keeps_sheet_row_fields(self):  # 티켓 21: 시트는 원장 기준으로 쓴다
         self.day("2026-11-05", bids=[fx.bid("B1", "홍보 애니메이션", price=50000000, deadline="2026-11-30 18:00")])
         e = json.loads((self.state / "ledger.json").read_text(encoding="utf-8"))["bid:B1"]

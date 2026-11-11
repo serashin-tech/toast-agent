@@ -40,6 +40,14 @@ class NewItemsMail(ReportCase):
         self.assertLess(html.index("수집하지 못한 소스"), html.index("입찰공고"))
         self.assertNotIn("SECRETKEY", html)
 
+    def test_result_warnings_are_shown_at_the_top(self):  # 티켓 22: 숨은 실패를 대표에게도 보인다
+        def mutate(d):
+            d["warnings"] = ["ledger.json을 읽지 못해 원장을 새로 시작했습니다"]
+        self.put_today(mutate)
+        html = self.mail()["html"]
+        self.assertIn("ledger.json을 읽지 못해", html)
+        self.assertLess(html.index("ledger.json"), html.index("입찰공고"))
+
     def test_renotified_bid_is_marked(self):  # D18
         def mutate(d):
             d["items"][0]["renotify"] = True

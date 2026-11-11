@@ -111,6 +111,7 @@ requirements[]: `category`(참가자격, 계약방식, 평가방식, 예산, 제
 - **지원사업의 `source`**: 두 소스가 병합된 사업은 `grant`, 한 소스에만 있는 사업은 그 소스 `id`(`grant_kocca` 또는 `grant_bizinfo`)이다. 읽는 쪽은 `kind`로 종류를 구분한다.
 - **`limit_near`의 `error`**: `kind`는 `rate_limit`으로 채운다.
 - **`keys`, `changed_shown_count` 추가와 `is_new` 뜻 변경(2026-11-10)**: 읽는 쪽은 모르는 필드를 무시하므로 `format_version`을 올리지 않았다. `is_new`의 뜻이 '오늘 처음 수집'에서 '아직 보여 주지 않음'으로 바뀌었다.
+- **`warnings` 추가(2026-11-11, 최상위 문자열 배열)**: gov가 원장이나 노출 기록을 읽지 못하는 등 결과에 영향을 준 문제를 적는다. 신규 알림 메일 맨 위 '확인이 필요한 점'에 그대로 나온다. 없으면 빈 배열이다.
 - **노출 기록 `shown_<날짜>.json`(2026-11-10)**: 결과 폴더에 `{"date": 날짜, "keys": [원장 키…]}`로 둔다. `daily_report record-publish --ok true --results <결과 폴더>`가 신규 알림 메일 발송에 성공한 날에만 쓰고(D31), gov는 다음 실행을 시작할 때 이 파일들로 원장의 첫 노출일을 채운다.
 - **`outsource` 추가(2026-11-09)**: 읽는 쪽은 모르는 `kind`를 건너뛰므로 덧붙이기만 한 이 변경은 `format_version`을 올리지 않았다. 옛 daily-report는 이 항목을 보이지 않을 뿐 실패하지 않는다.
 - **`eligibility`**: 수집 실행(`run`)은 빈 배열을 쓴다. 제안 가능성 검토는 별도 명령(`eligibility`)이 같은 계약의 항목을 만들고, 그 결과를 결과 파일에 합칠 때는 `eligibility --merge-into <결과 파일>`을 쓴다. 같은 공고번호의 항목은 바꾸고, 새 공고는 `eligibility` 배열에 더한다.

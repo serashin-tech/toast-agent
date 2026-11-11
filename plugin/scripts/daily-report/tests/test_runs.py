@@ -125,6 +125,31 @@ class ShownRecordAndRoutines(ReportCase):
         self.assertNotIn("published_ok", {k: v for k, v in review.items() if v is not None})
 
 
+class StepResults(ReportCase):
+    """티켓 22: 시트·현황판 단계의 성패를 그날 daily 줄에 남긴다(불변 규칙 9)."""
+
+    def test_record_step_on_daily_line(self):
+        runs = self.tmp / "runs"
+        self.put_today()
+        self.build(runs=runs, now=clock(at(10, 0), at(10, 1)))
+        for step, ok in (("sheet", "false"), ("board", "true")):
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["record-step", "--runs", str(runs), "--date", "2026-11-05",
+                                       "--step", step, "--ok", ok]), 0)
+        (line,) = [json.loads(x) for x in (runs / "runs.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(line["steps"], {"sheet": False, "board": True})
+
+    def test_unreadable_result_file_is_counted_in_shown_record(self):
+        runs = self.tmp / "runs"
+        self.put_today()
+        self.put("market_2026-11-05.json", "{broken")
+        with contextlib.redirect_stdout(io.StringIO()):
+            main(["record-publish", "--runs", str(runs), "--date", "2026-11-05", "--at", "2026-11-05T10:50:00+09:00",
+                  "--ok", "true", "--results", str(self.results)])
+        (line,) = [json.loads(x) for x in (runs / "runs.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(line["shown_unreadable"], 1)
+
+
 class ArrivalRate(ReportCase):
     def rec(self, day, published_at=None, ok=True):
         return {"date": f"2026-11-0{day}", "report_ok": True, "published_ok": ok if published_at else None,

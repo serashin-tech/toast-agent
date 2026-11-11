@@ -54,11 +54,12 @@ def build_rows(state_dir, run_date):
     """로컬 원장의 마감 전 행을 시트 행으로 바꾼다. 같은 사업의 다른 출처 키는 대표 행의 alt_keys로 붙인다.
 
     행 필드가 없는 옛 원장 항목은 건너뛴다. 대표 메모 열은 다루지 않고, 상태는 새 행에만 '신규'로 쓰인다.
+    원장을 읽지 못하면 None이다(빈 목록을 보내 성공처럼 보이게 하지 않는다).
     """
     try:
         ledger = json.loads((pathlib.Path(state_dir) / "ledger.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return []
+        return None
     aliases = {}
     for k, e in ledger.items():
         if e.get("alias_of"):
