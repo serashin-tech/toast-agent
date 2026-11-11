@@ -39,6 +39,18 @@ class RecentSettingChanges(ReportCase):
         self.assertLess(html.index("오늘 수집하지 못한 소스"), html.index("최근 설정 변경"))
         self.assertLess(html.index("최근 설정 변경"), html.index(">입찰공고 "))
 
+    def test_only_collection_settings_appear_not_profile_or_demo_criteria(self):  # 상자는 포함·제외 건수와 짝(D35)
+        d = self.tmp / "settings"
+        d.mkdir()
+        head = "## 변경 이력\n\n| 일자 | 항목 | 변경 전 | 변경 후 | 사유 | 변경자 |\n|---|---|---|---|---|---|\n"
+        (d / "bid-filter.md").write_text(head + "| 2026-11-04 | 포함 키워드 | 애니메이션 | 애니메이션, 무빙툰 | 실적 | 대표 |\n", encoding="utf-8")
+        (d / "company-profile.md").write_text(head + "| 2026-11-04 | 나라장터 등록일 | (없음) | 2022-01-10, 확인됨 | 조회 | 대표 |\n", encoding="utf-8")
+        (d / "demo-criteria.md").write_text(head + "| 2026-11-04 | 시연 신호 단어 | (없음) | 시안, 시연 | 초안 | 대표 |\n", encoding="utf-8")
+        html = self.html(settings=d)
+        self.assertIn("포함 키워드: +무빙툰", html)
+        self.assertNotIn("나라장터 등록일", html)
+        self.assertNotIn("시연 신호 단어", html)
+
     def test_boundary_is_7_days_inclusive(self):
         d = self.tmp / "settings"
         d.mkdir()

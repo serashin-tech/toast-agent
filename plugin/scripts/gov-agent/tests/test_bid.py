@@ -45,6 +45,17 @@ class BidCollection(Base):
         self.assertEqual(p["inqryBgnDt"], "202611050900")
         self.assertEqual((p["inqryEndDt"], p["type"]), ("202611060900", "json"))
 
+    def test_uses_the_services_list_operation_confirmed_on_2026_11_11(self):  # 실제 응답 확인(`…Servc02`)
+        t = FakeTransport(ok_routes())
+        self.run_day(t)
+        self.assertTrue(t.calls_to("/getBidPblancListInfoServc02"))
+
+    def test_request_window_is_capped_at_7_days(self):  # 2026-11-10부터 조회 기간 최대 7일(공공데이터포털 공지)
+        self.run_day(FakeTransport(ok_routes()), date="2026-11-01")
+        t2 = FakeTransport(ok_routes())
+        self.run_day(t2, date="2026-11-10")
+        self.assertEqual(t2.calls_to("BidPublicInfoService02")[0]["inqryBgnDt"], "202611030900")
+
 
 class BidFilter(Base):
     def collect(self, bids, **filter_args):

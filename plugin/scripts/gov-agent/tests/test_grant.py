@@ -21,6 +21,13 @@ class GrantCollection(Base):
         self.assertEqual(self.src(r, "grant_kocca")["included"], 1)
         self.assertEqual(self.src(r, "grant_bizinfo")["included"], 1)
 
+    def test_bizinfo_calls_the_list_operation_without_a_date_filter(self):  # 실제 응답 확인(2026-11-11)
+        self.run_grants(date="2026-11-05")
+        t = FakeTransport(ok_routes())
+        self.run_day(t, date="2026-11-06")
+        (p,) = t.calls_to("1421000/bizinfo/pblancBsnsService")
+        self.assertNotIn("updtPnttm", p)  # 그날 하루만 맞추는 필터라 증분에 쓸 수 없다. 전체를 받고 원장으로 가린다
+
     def test_empty_fields_of_main_are_filled_from_kocca(self):
         k = fx.kocca("K1", "같은 사업", category="콘텐츠제작지원")
         b = fx.bizinfo("B1", "같은 사업", field="")

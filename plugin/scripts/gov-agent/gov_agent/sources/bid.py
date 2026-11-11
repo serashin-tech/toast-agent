@@ -1,14 +1,17 @@
 """입찰공고정보서비스(S1) 어댑터: 용역 입찰공고 목록.
 
-미확인 가정: 오퍼레이션 이름, inqryDiv 값, 조회 기간 형식(12자리), 아래 FIELDS의 모든 필드 이름.
-승인된 키로 실제 응답을 받은 뒤 이 파일의 대응표만 고치면 된다.
+2026-11-11 실제 응답으로 확인: 오퍼레이션 `getBidPblancListInfoServc02`, inqryDiv=1과 12자리 조회 기간,
+JSON 구조(response.body.items), FIELDS의 필드 이름. 2026-11-10부터 조회 기간은 최대 7일이다(공공데이터포털 공지).
 """
+from datetime import timedelta
+
 from . import _common as c
 
 ID, LABEL, KIND = "bid", "입찰공고(나라장터 용역)", "bid"
 PORTAL = "https://www.g2b.go.kr"
 URL_BASE = "https://apis.data.go.kr/1230000/ad/BidPublicInfoService02"
-OPERATION = "getBidPblancListInfoServc"  # 가정
+OPERATION = "getBidPblancListInfoServc02"
+MAX_WINDOW = timedelta(days=7)
 URL_ENV = "BID_API_URL"
 PAGE_SIZE = 100
 HEADER_PATH = ("response", "header")
@@ -27,6 +30,8 @@ def url(env):
 
 
 def build_params(since, now):
+    # ponytail: 7일보다 오래 쉬었으면 그 앞의 공고는 받지 않는다. 필요하면 7일 단위로 나눠 여러 번 부른다.
+    since = max(since, now - MAX_WINDOW)
     return {"inqryDiv": "1", "inqryBgnDt": since.strftime("%Y%m%d%H%M"),
             "inqryEndDt": now.strftime("%Y%m%d%H%M"), "type": "json"}
 

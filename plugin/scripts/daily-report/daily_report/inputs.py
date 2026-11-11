@@ -99,12 +99,18 @@ def load_agent(results_dir, agent, run_date):
 _HISTORY_COLS = ["일자", "항목", "변경 전", "변경 후", "사유", "변경자"]
 
 
+# 수집 결과(포함·제외 건수)에 영향을 주지 않는 설정. 메일의 설정 변경 상자는 건수 변화와 짝이므로 싣지 않는다(D35).
+NOT_COLLECTION = ("company-profile.md", "demo-criteria.md")
+
+
 def recent_changes(settings_dir, today, days=7):
-    """설정 md의 '## 변경 이력' 표에서 기준일 기준 최근 days일 이내 행을 읽는다. 형식이 다르면 건너뛴다."""
+    """수집 설정 md의 '## 변경 이력' 표에서 기준일 기준 최근 days일 이내 행을 읽는다. 형식이 다르면 건너뛴다."""
     rows = []
     if not settings_dir:
         return rows
     for md in sorted(pathlib.Path(settings_dir).glob("*.md")):
+        if md.name in NOT_COLLECTION:
+            continue
         try:
             text = md.read_text(encoding="utf-8")
         except (OSError, ValueError):
