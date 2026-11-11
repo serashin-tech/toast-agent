@@ -15,11 +15,29 @@ class RecentSettingChanges(ReportCase):
         html = self.html(settings=SETTINGS)
         self.assertIn("최근 설정 변경", html)
         self.assertIn("포함 키워드", html)
-        self.assertIn("애니메이션 → 애니메이션, AI", html)
+        self.assertIn("포함 키워드: +AI", html)
         self.assertNotIn("추정가격 하한", html)  # 2026-10-20은 16일 전
 
     def test_initial_row_is_shown_when_within_7_days(self):
         self.assertIn("최초 작성", self.html(settings=SETTINGS))
+
+    def test_list_values_show_only_what_was_added_and_removed(self):  # D35, US 14: 바뀐 부분이 보여야 한다
+        d = self.tmp / "settings"
+        d.mkdir()
+        before = ", ".join(f"키워드{n}" for n in range(20)) + ", 실감"
+        after = ", ".join(f"키워드{n}" for n in range(20)) + ", 무빙툰"
+        (d / "a.md").write_text("## 변경 이력\n\n| 일자 | 항목 | 변경 전 | 변경 후 | 사유 | 변경자 |\n|---|---|---|---|---|---|\n"
+                                f"| 2026-11-04 | 포함 키워드 | {before} | {after} | 실적 반영 | 대표 |\n"
+                                f"| 2026-11-04 | 제외 키워드 | (빈 값) | 유지보수, 유지관리 | 초안 | 대표 |\n", encoding="utf-8")
+        html = self.html(settings=d)
+        self.assertIn("포함 키워드: +무빙툰 −실감", html)
+        self.assertIn("제외 키워드: +유지보수, 유지관리", html)
+        self.assertNotIn(after, html)  # 목록 전체를 다시 싣지 않는다
+
+    def test_change_box_sits_between_failures_and_sections(self):  # spec: 실패 → 확인 → 설정 변경 → … → 절
+        html = self.html(settings=SETTINGS)  # 고정 자료의 한콘진은 실패
+        self.assertLess(html.index("오늘 수집하지 못한 소스"), html.index("최근 설정 변경"))
+        self.assertLess(html.index("최근 설정 변경"), html.index(">입찰공고 "))
 
     def test_boundary_is_7_days_inclusive(self):
         d = self.tmp / "settings"
@@ -28,7 +46,7 @@ class RecentSettingChanges(ReportCase):
         (d / "a.md").write_text(head + "| 2026-10-29 | 일곱째날항목 | 가 | 나 | 사유 | 대표 |\n"
                                 "| 2026-10-28 | 여덟째날항목 | 가 | 나 | 사유 | 대표 |\n", encoding="utf-8")
         html = self.html(settings=d)
-        self.assertIn("일곱째날항목", html)
+        self.assertIn("일곱째날항목: 가 → 나", html)  # 목록이 아닌 값은 전 → 후
         self.assertNotIn("여덟째날항목", html)
 
     def test_no_recent_change_means_no_line_and_no_count_delta(self):

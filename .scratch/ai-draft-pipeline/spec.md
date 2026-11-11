@@ -9,7 +9,7 @@ Feature: ai-draft-pipeline (AI 시안 파이프라인: 공고 수집·검토부�
 >
 > 진행 상황(2026-11-09):
 > - 3단계 구현 완료: `gov_agent/demo_brief.py`, `brief` 명령, `settings/demo-criteria.md`, 시험 9개(`tests/test_demo_brief.py`), 입력 형식 `docs/demo-brief-input.md`. 판정 기준은 Q3의 "공고가 요구할 때만"으로 정했습니다(대표 확인 전).
-> - 4단계 절차서 `DEMO.md`를 작성했습니다. 커넥터는 아직 연결하지 않았고, 확인 기록은 비어 있습니다.
+> - 4단계 절차서 `DEMO.md`를 작성했습니다. 커넥터는 아직 연결하지 않았고, 확인 기록은 비어 있습니다. (2026-11-11: 절차는 `make-demo` 스킬로 옮겼고, 확인 기록은 하네스 티켓 16에 있습니다.)
 > - 리허설: 가상 공고 R26BK999(`demo-sample/`)로 2~3단계를 실행했습니다. 11/9 회사 프로필로 다시 돌린 결과는 recommend(권고) → 시연 필요(both)입니다(처음 실행 때는 conditional).
 > - 아래 P3의 JSON은 처음 제안한 형식입니다. 구현된 형식은 `gov-agent/docs/demo-brief-input.md`와 `brief` 명령의 출력(signals, gate, unspecified 등)을 따릅니다. 판정은 Claude가 아니라 코드가 합니다.
 > - Q5~Q7과 Adobe 계정 정보는 대표에게 요청합니다(요청양식 문서는 2026-11-09 정리 때 지움).

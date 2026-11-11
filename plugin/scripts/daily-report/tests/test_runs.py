@@ -114,7 +114,7 @@ class ShownRecordAndRoutines(ReportCase):
     def test_arrival_attaches_to_the_daily_line_not_a_later_review_line(self):
         self.put_today()
         self.build(runs=self.runs, now=clock(at(10, 0), at(10, 1)))
-        argv = ["build", "--date", "2026-11-05", "--results", str(self.results), "--out", str(self.out),
+        argv = ["build", "--date", "2026-11-05", "--results", str(self.results),
                 "--runs", str(self.runs), "--routine", "review"]
         with contextlib.redirect_stdout(io.StringIO()):
             main(argv, now=clock(at(10, 30), at(10, 31)))
@@ -143,7 +143,7 @@ class StepResults(ReportCase):
         runs = self.tmp / "runs"
         self.put_today()
         self.build(runs=runs, now=clock(at(10, 0), at(10, 1)))
-        argv = ["build", "--date", "2026-11-05", "--results", str(self.results), "--out", str(self.out),
+        argv = ["build", "--date", "2026-11-05", "--results", str(self.results),
                 "--runs", str(runs), "--routine", "review"]
         with contextlib.redirect_stdout(io.StringIO()):
             main(argv, now=clock(at(14, 0), at(14, 1)))

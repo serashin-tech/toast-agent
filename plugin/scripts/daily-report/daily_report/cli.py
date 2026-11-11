@@ -8,7 +8,7 @@ import json
 import pathlib
 from datetime import datetime, timedelta
 
-from . import deliver, inputs, render, runs, sheet
+from . import deliver, inputs, runs, sheet
 
 
 def count_delta(today, prev):
@@ -29,19 +29,20 @@ def count_delta(today, prev):
     return {"included": (t_inc, p_inc), "excluded": (t_exc, p_exc)} if n else None
 
 
+def _changes_and_counts(results, settings, run_date, agents):
+    """최근 설정 변경과 전날 대비 건수(D35). 전날 파일은 건수 비교에만 쓰고 오늘 결과를 대신하지 않는다."""
+    changes = inputs.recent_changes(settings, run_date)
+    if not changes:
+        return changes, None
+    prev = [inputs.load_agent(results, a, run_date - timedelta(days=1)) for a in inputs.EXPECTED_AGENTS]
+    return changes, count_delta(agents, prev)
+
+
 def _build(args, now):
+    """그날 실행 기록 줄을 시작한다. 보고서 HTML은 만들지 않는다(D35)."""
     started = now()
     run_date = inputs.parse_date(args.date)
     agents = [inputs.load_agent(args.results, a, run_date) for a in inputs.EXPECTED_AGENTS]
-    changes = inputs.recent_changes(args.settings, run_date)
-    counts = None
-    if changes:  # 전날 파일은 건수 비교에만 쓴다. 오늘 결과를 대신하지 않는다.
-        prev = [inputs.load_agent(args.results, a, run_date - timedelta(days=1)) for a in inputs.EXPECTED_AGENTS]
-        counts = count_delta(agents, prev)
-    html = render.render(run_date, agents, changes, counts)
-    out = pathlib.Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    (out / f"report-{args.date}.html").write_text(html, encoding="utf-8")
     if args.runs:
         runs.append_run(args.runs, {
             "date": args.date, "routine": args.routine, "started_at": started.isoformat(timespec="seconds"),
@@ -83,11 +84,9 @@ def main(argv=None, now=None, transport=None):
     now = now or (lambda: datetime.now(runs.KST))
     p = argparse.ArgumentParser(prog="daily_report")
     sub = p.add_subparsers(dest="cmd", required=True)
-    b = sub.add_parser("build", help="보고서 HTML 한 장과 실행 기록을 만든다")
+    b = sub.add_parser("build", help="그날 실행 기록 줄을 시작한다(D35: 보고서 HTML은 만들지 않음)")
     b.add_argument("--date", required=True)
     b.add_argument("--results", required=True)
-    b.add_argument("--out", required=True)
-    b.add_argument("--settings")
     b.add_argument("--runs")
     b.add_argument("--routine", choices=["daily", "review"], default="daily", help="실행 기록에 남길 루틴 종류")
     r = sub.add_parser("record-publish", help="전달(신규 알림 메일 발송) 결과를 실행 기록에 적는다(D31)")
@@ -103,6 +102,7 @@ def main(argv=None, now=None, transport=None):
     m.add_argument("--board-url")
     m.add_argument("--sheet-url", help="없으면 --env-file의 SHEET_URL을 쓴다")
     m.add_argument("--env-file", default=".env")
+    m.add_argument("--settings", help="설정 폴더. 주면 최근 7일 설정 변경과 전날 대비 건수를 메일에 싣는다(D35)")
     bd = sub.add_parser("board", help="시트 응답 JSON으로 입찰 현황판 HTML을 만든다(D28)")
     bd.add_argument("--date", required=True)
     bd.add_argument("--sheet", required=True, help="Apps Script GET 응답을 저장한 JSON 파일({rows: [...]})")
@@ -144,7 +144,9 @@ def main(argv=None, now=None, transport=None):
         if args.cmd == "mail":
             agents = [inputs.load_agent(args.results, a, run_date) for a in inputs.EXPECTED_AGENTS]
             sheet_url = args.sheet_url or sheet.read_env(args.env_file).get("SHEET_URL")
-            text = json.dumps(deliver.render_mail(run_date, agents, args.board_url, sheet_url), ensure_ascii=False)
+            changes, counts = _changes_and_counts(args.results, args.settings, run_date, agents)
+            text = json.dumps(deliver.render_mail(run_date, agents, args.board_url, sheet_url, changes, counts),
+                              ensure_ascii=False)
         else:
             rows = json.loads(pathlib.Path(args.sheet).read_text(encoding="utf-8")).get("rows") or []
             text = deliver.render_board(run_date, rows)

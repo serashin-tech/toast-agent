@@ -4,7 +4,7 @@
 대표 메모와 시트 주소를 싣지 않는다.
 """
 from .inputs import parse_date
-from .render import SECTIONS, days_left, dday, esc, failures, link, won
+from .render import SECTIONS, SOON_DAYS, days_left, dday, esc, failures, link, won
 
 REVIEWING = ("2차 검토 요청", "2차 검토 중", "2차 완료", "데모 요청", "데모 완료")  # 맨 위에 둘 상태(D26)
 LATER = ("신규", "보류", "관련 없음")
@@ -25,8 +25,49 @@ def _meta(it, run_date):
     return " · ".join(parts)
 
 
-def render_mail(run_date, agents, board_url=None, sheet_url=None):
-    """반환: {"subject", "html", "count"}."""
+_EMPTY = ("", "(빈 값)", "(없음)", "없음")
+
+
+def _what_changed(before, after):
+    """쉼표 목록 값(키워드 등)은 더하고 뺀 것만, 그 밖의 값은 '전 → 후'로 적는다(D35, US 14)."""
+    before, after = (before or "").strip(), (after or "").strip()
+    if "," not in before + after:
+        return f"{esc(before)} → {esc(after)}"
+    old, new = ([] if v in _EMPTY else [x.strip() for x in v.split(",") if x.strip()] for v in (before, after))
+    added, removed = [x for x in new if x not in old], [x for x in old if x not in new]
+    parts = (["+" + esc(", ".join(added))] if added else []) + (["−" + esc(", ".join(removed))] if removed else [])
+    return " ".join(parts) or "순서만 바뀜"
+
+
+def _changes(changes, counts):
+    """최근 설정 변경 한 줄과 전날 대비 건수(D35). 변경이 없으면 빈 문자열."""
+    if not changes:
+        return ""
+
+    lines = "; ".join(f'{esc(c["일자"])} {esc(c["항목"])}: {_what_changed(c["변경 전"], c["변경 후"])} ({esc(c["사유"])})'
+                      for c in changes)
+    html = f'<div style="background:#fff6dc;padding:8px 12px;margin:0 0 16px"><strong>최근 설정 변경</strong> {lines}'
+    if counts:
+        (ti, pi), (te, pe) = counts["included"], counts["excluded"]
+        html += (f"<br><strong>전날 대비</strong> 포함 {ti}건 (전날 {pi}건, {ti - pi:+d}건), 제외 {te}건 (전날 {pe}건, {te - pe:+d}건). "
+                 "수집에 성공한 소스만 비교합니다.")
+    return html + "</div>"
+
+
+def _sort_key(run_date):
+    def key(it):  # 마감이 가까운 순, 마감 없음은 뒤(D35)
+        n = days_left(it, run_date)
+        return (n is None, n or 0)
+    return key
+
+
+def _soon(it, run_date):
+    n = days_left(it, run_date)
+    return n is not None and 0 <= n <= SOON_DAYS
+
+
+def render_mail(run_date, agents, board_url=None, sheet_url=None, changes=None, counts=None):
+    """반환: {"subject", "html", "count"}. changes·counts는 최근 설정 변경 줄(D35)의 입력이다."""
     items = [it for a in agents if a["ok"] for it in a["items"] if it["is_new"]]
     p = f'<p style="margin:0 0 12px">'
     out = [f'<div style="font-family:{FONT};word-break:keep-all;line-height:1.6;max-width:640px">']
@@ -41,20 +82,28 @@ def render_mail(run_date, agents, board_url=None, sheet_url=None):
     if warns:
         out.append('<div style="border:1px solid #b26a00;padding:8px 12px;margin:0 0 16px"><strong>확인이 필요한 점</strong>'
                    f"<ul>{''.join(f'<li>{esc(w)}</li>' for w in warns)}</ul></div>")
+    out.append(_changes(changes, counts))
     if not any(a["ok"] for a in agents):
         out.append(p + "오늘 결과 파일을 확인하지 못했습니다. 실행 기록을 확인해 주십시오.</p>")
+    elif not items:
+        out.append(p + ("오늘은 새 공고가 없습니다.</p>" if not fails else "수집에 성공한 소스에는 오늘 새 항목이 없습니다.</p>"))
     changed = sum(s.get("changed_shown_count") or 0 for a in agents if a["ok"] for s in a["sources"])
     if changed:
         out.append(p + f"이미 보신 공고 {changed}건의 내용이 바뀌었습니다(시트에서 확인).</p>")
     for sid, title, source_ids in SECTIONS:
-        its = [it for it in items if it["source"] in source_ids or (sid == "grant" and it["kind"] == "grant")]
+        its = sorted((it for it in items if it["source"] in source_ids or (sid == "grant" and it["kind"] == "grant")),
+                     key=_sort_key(run_date))
+        broken = [f for f in fails if f[3] is None or f[3] in source_ids]  # 에이전트 전체 실패는 모든 절에 걸린다
+        note = (p + "수집 실패: " + ", ".join(f"{esc(f[0])}({esc(f[1])})" for f in broken) + "</p>") if broken else ""
         body = "".join(f'<li style="margin:0 0 8px">'
                        + ("<strong>[다시 알림: 검토를 요청하신 공고의 내용이 바뀌었습니다]</strong> " if it.get("renotify") else "")
+                       + ('<strong style="color:#b26a00">[마감 임박]</strong> ' if _soon(it, run_date) else "")
                        + f'{link(it["title"], it["url"])}<br>'
                        + (f'<span>AI 요약: {esc(it["summary"])}</span><br>' if it.get("summary") else "")
                        + f'<span style="color:#5f6672">{_meta(it, run_date)}</span></li>' for it in its)
+        empty = "" if broken else p + "새 항목이 없습니다.</p>"
         out.append(f'<h2 style="font-size:16px;margin:16px 0 8px">{esc(title)} {len(its)}건</h2>'
-                   + (f"<ul>{body}</ul>" if its else p + "새 항목이 없습니다.</p>"))
+                   + note + (f"<ul>{body}</ul>" if its else empty))
     links = [link("입찰 현황판 열기", board_url) if board_url else "", link("수집 이력 시트 열기", sheet_url) if sheet_url else ""]
     if any(links):
         out.append(p + " · ".join(x for x in links if x) + "</p>")

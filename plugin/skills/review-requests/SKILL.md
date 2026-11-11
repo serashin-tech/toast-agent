@@ -23,7 +23,7 @@ description: 수집 이력 시트에서 상태가 '2차 검토 요청'인 입찰
    7. 결과에 따라 상태를 '2차 완료(권고)', '2차 완료(조건부)', '2차 완료(비권고)' 가운데 하나로 바꾼다.
    8. 결과 메일: `reports/review-ID.json`에 `{"subject": "[토스트] 2차 검토 ID: 권고|조건부|비권고", "html": ...}`를 쓴다. html에는 종합 의견과 이유, 요건별 판정과 근거 문장·위치, 시연 필요 여부와 이유, 읽지 못한 첨부, "최종 판단은 대표가 합니다" 문구를 표로 넣는다. `REPORT send-mail --mail reports/review-ID.json`
 3. 입찰 현황판을 daily-routine 6단계와 같은 방법으로 다시 게시한다. 결과는 4번 build 뒤에 `REPORT record-step --runs runs --date TODAY --step board --ok true|false --routine review`로 남긴다.
-4. 실행 기록: `REPORT build --date TODAY --results results --out reports --runs runs --routine review`
+4. 실행 기록: `REPORT build --date TODAY --results results --runs runs --routine review`
 5. 잠금을 풀고 한 줄로 보고한다: 처리한 공고 수와 결과.
 
 실패하면 그 공고의 상태를 '2차 검토 요청'으로 되돌리고 다음 공고로 넘어간다.

@@ -11,11 +11,11 @@ description: 토스트 정부사업 에이전트의 매일 10:00 무인 루틴. 
    - `GOV run --date TODAY --out results --sheet-rows reports/sheet-before-TODAY.json` (시트를 못 받았으면 `--sheet-rows`를 뺀다). 검토를 요청한 입찰공고의 내용이 바뀌었으면 다시 실린다(D18).
    - 인증키는 코드가 `.env`에서 읽는다. `.env`를 열거나 출력하지 않는다.
    - 관련도 한 줄 요약(D33): `results/gov_TODAY.json`의 입찰공고(kind가 bid)마다 제목과 기관을 `settings/company-profile.md`의 주요 사업 분야·수행 실적과 견주어 "왜 볼 만한지(또는 아닌지)"를 한 줄(120자 안)로 쓴다. 근거가 없는 평가나 낙찰 가능성은 쓰지 않는다. `{"공고번호": "요약"}` 모양으로 `reports/summaries-TODAY.json`에 쓰고 `GOV summarize --result results/gov_TODAY.json --input reports/summaries-TODAY.json`을 실행한다. 실패하면 요약 없이 이어 가고, 2번 build 뒤에 `REPORT record-step --runs runs --date TODAY --step summary --ok false`를 남긴다.
-2. 실행 기록 시작: `REPORT build --date TODAY --results results --out reports --settings settings --runs runs`
+2. 실행 기록 시작: `REPORT build --date TODAY --results results --runs runs`
 3. 시트 기록: `REPORT sheet-push --date TODAY --state state` (로컬 원장의 마감 전 행 전체를 보내므로, 어제 실패한 행도 오늘 다시 들어간다). 종료 코드로 `REPORT record-step --runs runs --date TODAY --step sheet --ok true|false`를 남긴다.
 4. 신규 알림 메일
    - `reports/artifact-url.txt`가 있으면 그 주소를 BOARD로 쓴다.
-   - `REPORT mail --date TODAY --results results --out reports/mail-TODAY.json --board-url BOARD`
+   - `REPORT mail --date TODAY --results results --out reports/mail-TODAY.json --board-url BOARD --settings settings` (각 절은 마감이 가까운 순, 7일 이내는 '마감 임박', 최근 7일 설정 변경 한 줄, D35)
    - `REPORT send-mail --mail reports/mail-TODAY.json` 의 종료 코드로 성공 여부를 정한다. 지금 한국 시각(ISO 8601)을 AT라고 부른다.
 5. 실행 기록 마감: `REPORT record-publish --runs runs --date TODAY --at AT --ok true|false --results results`
    - 메일 발송에 성공했을 때만 `--ok true`다. 성공한 날에만 노출 기록이 남고, 11시 도착은 이것으로 센다(D31).

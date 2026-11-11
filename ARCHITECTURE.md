@@ -24,7 +24,7 @@ toast-agent/                          저장소 루트 = 마켓플레이스 `toa
 ├── .env.example                      작업 폴더 .env의 항목
 ├── apps-script/                      시트에 붙이는 Code.gs와 설치·확인 절차
 ├── docs/
-│   ├── decisions.md                  결정 D1~D34, 요구사항 IM, 리스크 R, 질문 Q
+│   ├── decisions.md                  결정 D1~D35, 요구사항 IM, 리스크 R, 질문 Q
 │   ├── result-format.md              gov-agent → daily-report 결과 파일 계약
 │   ├── adr/0001~0003                 되돌리기 어려운 결정
 │   ├── agents/                       이슈 트래커·라벨·도메인 문서 규칙
