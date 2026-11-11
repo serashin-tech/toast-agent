@@ -79,10 +79,17 @@ def _daily_line(records, date_s):
     return idx
 
 
-def record_step(runs_dir, date_s, step, ok):
-    """시트 기록, 현황판 게시처럼 메일 밖 단계의 성패를 그날 daily 줄의 steps에 남긴다(티켓 22)."""
+def record_step(runs_dir, date_s, step, ok, routine="daily"):
+    """시트 기록, 현황판 게시처럼 메일 밖 단계의 성패를 그날 해당 루틴의 마지막 줄 steps에 남긴다(티켓 22)."""
     records = load_runs(runs_dir)
-    idx = _daily_line(records, date_s)
+    if routine == "daily":
+        idx = _daily_line(records, date_s)
+    else:
+        idx = max((i for i, r in enumerate(records) if r.get("date") == date_s and r.get("routine") == routine),
+                  default=None)
+        if idx is None:
+            records.append({"date": date_s, "routine": routine, "report_ok": None})
+            idx = len(records) - 1
     records[idx].setdefault("steps", {})[step] = ok
     _save(runs_dir, records)
 

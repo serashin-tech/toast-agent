@@ -18,6 +18,7 @@ gov-agent가 쓰고 daily-report가 읽는 날짜별 JSON 파일의 형식이다
 | `items` | 배열 | 공통 항목(아래) |
 | `eligibility` | 배열 | 제안 가능성 검토 결과(없으면 빈 배열) |
 | `settings` | 객체 | 설정 사용 정보(아래) |
+| `warnings` | 문자열 배열 | 결과에 영향을 준 문제(원장·노출 기록·시트 상태 파일을 읽지 못함 등). 없으면 빈 배열(2026-11-11 추가) |
 
 ## sources[]
 
@@ -29,7 +30,7 @@ gov-agent가 쓰고 daily-report가 읽는 날짜별 JSON 파일의 형식이다
 | `fetched` | 정수 | API에서 받은 건수 |
 | `included` | 정수 | 필터를 통과해 `items`에 들어간 건수 |
 | `excluded` | 정수 | 필터에서 제외된 건수 |
-| `new_count` | 정수 | `included` 중 아직 보여 주지 않은 건수. 2026-11-10부터 `included`와 같다(D13) |
+| `new_count` | 정수 | `included` 중 아직 보여 주지 않은 건수. 재알림 항목(`renotify`)만큼 `included`보다 작을 수 있다(D13, D18) |
 | `changed_shown_count` | 정수 | 이미 보여 준 항목 가운데 오늘 내용이 바뀐 건수. 이 항목은 `items`에 싣지 않는다(2026-11-10 추가, IM-09) |
 | `error` | 객체 또는 null | 실패일 때 `{"kind": ..., "message": ...}`. `kind`는 `auth`, `pending_approval`, `rate_limit`, `network`, `format` 중 하나. `message`에는 인증키를 넣지 않는다 |
 | `last_success_at` | 일시 또는 null | 이 소스가 마지막으로 성공한 시각 |
@@ -47,7 +48,7 @@ gov-agent가 쓰고 daily-report가 읽는 날짜별 JSON 파일의 형식이다
 | `url` | 문자열 | 원문 링크. 모든 항목에 있어야 하고 `http` 또는 `https`로 시작한다 |
 | `matched_keywords` | 문자열 배열 | 필터를 통과시킨 포함 키워드. 필터 미설정이면 빈 배열 |
 | `summary` | 문자열 또는 null | 에이전트가 쓴 한 줄 요약. 원문 인용이 아니다 |
-| `is_new` | 불리언 | 아직 보여 주지 않은 항목인지. 2026-11-10부터 gov는 아직 보여 주지 않은 항목만 싣으므로 늘 참이다(D13). 옛 파일에는 거짓인 항목이 있을 수 있다 |
+| `is_new` | 불리언 | 메일에 실을 항목인지. 2026-11-10부터 gov가 싣는 항목은 늘 참이다(D13). 이미 보여 줬지만 다시 알리는 항목은 `renotify`로 구분한다. 옛 파일에는 거짓인 항목이 있을 수 있다 |
 | `renotify` | 불리언, 없을 수 있음 | 이미 보여 줬지만 대표가 시트에서 검토를 요청한 뒤 내용이 바뀌어 다시 싣는 입찰공고에만 참으로 붙는다(D18, `run --sheet-rows`) |
 | `keys` | 문자열 배열 | 로컬 원장 키(`소스:식별자`). 병합한 지원사업은 출처 키 둘을 모두 담는다. 노출 기록(`shown_<날짜>.json`)이 이 키를 쓴다(2026-11-10 추가, IM-09) |
 | `extra` | 객체 | 종류별 고유 값(아래) |

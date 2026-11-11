@@ -47,6 +47,7 @@ def _build(args, now):
             "date": args.date, "routine": args.routine, "started_at": started.isoformat(timespec="seconds"),
             "finished_at": now().isoformat(timespec="seconds"), "sources": runs.source_status(agents),
             "report_ok": True, "published_ok": None,
+            "warnings": sum(len(a.get("warnings") or []) for a in agents),  # 결과 파일의 숨은 실패 수(티켓 22)
         })
     return 0
 
@@ -113,8 +114,9 @@ def main(argv=None, now=None, transport=None):
     st = sub.add_parser("record-step", help="메일 밖 단계(sheet, board 등)의 성패를 그날 daily 줄에 남긴다(티켓 22)")
     st.add_argument("--runs", required=True)
     st.add_argument("--date", required=True)
-    st.add_argument("--step", required=True)
+    st.add_argument("--step", required=True, choices=["lock", "sheet_pull", "summary", "sheet", "board"])
     st.add_argument("--ok", required=True, choices=["true", "false"])
+    st.add_argument("--routine", choices=["daily", "review"], default="daily")
     sp = sub.add_parser("sheet-push", help="로컬 원장의 마감 전 행을 수집 이력 시트에 보낸다(티켓 21, D29)")
     sp.add_argument("--date", required=True)
     sp.add_argument("--state", default="state", help="gov-agent의 상태 폴더(ledger.json이 있는 곳)")
@@ -158,7 +160,7 @@ def main(argv=None, now=None, transport=None):
         print(note)
         return 0 if ok else 1
     if args.cmd == "record-step":
-        runs.record_step(args.runs, args.date, args.step, args.ok == "true")
+        runs.record_step(args.runs, args.date, args.step, args.ok == "true", args.routine)
         return 0
     if args.cmd == "record-publish":
         runs.record_publish(args.runs, args.date, args.at, args.ok == "true", results_dir=args.results)

@@ -60,8 +60,15 @@ def _load_ledger(state_dir, out_dir, run_date_s):
             warnings.append(f"노출 기록 {p.name}을 읽지 못했습니다. 그날 보여 준 항목이 다시 나올 수 있습니다.")
             continue
         for k in data.get("keys") or []:
-            if k in ledger and not ledger[k].get("first_shown"):
+            if k not in ledger:
+                continue
+            if not ledger[k].get("first_shown"):
                 ledger[k]["first_shown"] = data.get("date")
+            e = ledger[k]
+            # 다시 알린 공고는 그 뒤의 노출 기록이 있어야 새 지문을 받는다(D18). 지난 노출 기록은 매번 다시 읽히므로 날짜를 본다.
+            if "pending_fp" in e and str(data.get("date") or "") >= e.get("pending_since", ""):
+                e["fp"] = e.pop("pending_fp")
+                e.pop("pending_since", None)
     return ledger, warnings
 
 
@@ -102,13 +109,17 @@ def _fetch(src, transport, key, state, env, now, run_date_s, call_budget):
 REQUESTED = ("2차 검토 요청", "2차 검토 중", "2차 완료", "데모 요청", "데모 완료")  # D18: 바뀌면 다시 알릴 상태(D26)
 
 
-def _requested_keys(sheet_rows):
-    """시트 읽기 결과(report.py sheet-pull의 JSON)에서 대표가 검토를 요청한 행의 키. 파일이 없으면 빈 집합."""
+def _requested_keys(sheet_rows, warnings):
+    """시트 읽기 결과(report.py sheet-pull의 JSON)에서 대표가 검토를 요청한 행의 키.
+
+    인자가 없으면 빈 집합이다. 파일을 읽지 못하면 빈 집합을 쓰되 경고를 남긴다(불변 규칙 9).
+    """
     if not sheet_rows:
         return set()
     try:
         rows = json.loads(Path(sheet_rows).read_text(encoding="utf-8")).get("rows") or []
     except (OSError, ValueError, AttributeError):
+        warnings.append("시트 상태 파일을 읽지 못해, 검토를 요청한 공고의 변경을 다시 알리지 못했습니다(D18).")
         return set()
     return {r.get("key") for r in rows if str(r.get("status") or "").startswith(REQUESTED)}
 
@@ -126,8 +137,8 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
     cfg, problems, files = st.load_all(settings_dir, state_dir / "last_good_settings")
     res = {s.ID: _fetch(s, transport, key, state, env, now, run_date_s, call_budget) for s in ALL}
     ledger, warnings = _load_ledger(state_dir, out_dir, run_date_s)
-    requested = _requested_keys(sheet_rows)
-    touched, items = {}, []
+    requested = _requested_keys(sheet_rows, warnings)
+    touched, items, renotified = {}, [], set()
 
     # 지원사업은 한콘진·중소기업 두 출처에 따로 올라와 날짜가 어긋날 수 있으므로, 같은 사업의 열쇠로도 노출을 본다.
     shown_groups = {e["group"] for e in ledger.values() if e.get("group") and e.get("first_shown")}
@@ -161,6 +172,8 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
         if was_shown and not renotify:
             r["changed_shown"] += changed
             continue
+        if renotify:
+            renotified.add(f"bid:{it['id']}")
         r["included"] += 1
         r["new"] += not renotify
         items.append(_item("bid", "bid", it, matched, [f"bid:{it['id']}"], {
@@ -234,12 +247,14 @@ def run(run_date, out_dir, settings_dir, state_dir, transport, env=None, now=Non
             continue
         e = ledger.setdefault(k, {"first_seen": run_date_s, "last_changed": None, "first_shown": None, "fp": fp})
         e.update(row)
-        e.pop("alias_of", None)
-        if alias_of:
+        if alias_of:  # 한 번 별칭이 된 출처는 혼자 수집돼도 별칭으로 남는다(시트에 같은 사업 행이 둘 생기지 않게)
             e["alias_of"] = alias_of
         if group:
             e["group"] = group
-        if e["fp"] != fp:
+        if k in renotified:  # 메일로 실제 보여 줄 때까지 지문을 미룬다. 발송에 실패하면 다음 날 다시 알린다
+            if e.get("pending_fp") != fp:
+                e["pending_fp"], e["pending_since"], e["last_changed"] = fp, run_date_s, run_date_s
+        elif e["fp"] != fp:
             e["fp"], e["last_changed"] = fp, run_date_s
     state_dir.mkdir(parents=True, exist_ok=True)
     (state_dir / "state.json").write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")

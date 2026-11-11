@@ -65,6 +65,33 @@ class Ledger(Base):
         self.assertIs(r["items"][0]["renotify"], True)
         self.assertEqual(self.src(r, "bid")["changed_shown_count"], 1)  # B2는 지금처럼 건수만
 
+    def test_renotify_survives_a_failed_send_until_it_is_shown(self):  # 재리뷰 (c)2
+        self.day("2026-11-05", bids=[fx.bid("B1", "홍보 애니메이션")])
+        shown(self.out, "2026-11-05", ["bid:B1"])
+        sheet = self.requested([("bid:B1", "2차 검토 중")])
+        changed = [fx.bid("B1", "홍보 애니메이션", deadline="2026-12-05 18:00")]
+        self.run_day(FakeTransport(ok_routes(bids=changed)), date="2026-11-06", sheet_rows=sheet)
+        # 11-06 메일 발송 실패: 노출 기록 없음 -> 11-07에도 다시 나와야 한다
+        r = self.run_day(FakeTransport(ok_routes(bids=changed)), date="2026-11-07", sheet_rows=sheet)
+        self.assertEqual(self.ids(r), ["B1"])
+        shown(self.out, "2026-11-07", ["bid:B1"])
+        r = self.run_day(FakeTransport(ok_routes(bids=changed)), date="2026-11-08", sheet_rows=sheet)
+        self.assertEqual(self.ids(r), [])
+
+    def test_unreadable_sheet_rows_are_warned(self):  # 재리뷰 (a)2: 재알림 입력의 실패를 숨기지 않는다
+        bad = self.out.parent / "sheet.json"
+        bad.write_text("{broken", encoding="utf-8")
+        r = self.run_day(FakeTransport(ok_routes(bids=[fx.bid("B1", "홍보 애니메이션")])), sheet_rows=bad)
+        self.assertTrue(any("시트" in w for w in r["warnings"]))
+
+    def test_alias_stays_when_one_origin_is_collected_alone(self):  # 재리뷰 (c)3
+        k = fx.kocca("K1", "애니메이션 제작 지원", end="2026-12-10")
+        b = fx.bizinfo("P1", "애니메이션 제작 지원", end="20261210")
+        self.day("2026-11-05", koccas=[k], bizinfos=[b])
+        self.day("2026-11-06", koccas=[fx.kocca("K1", "애니메이션 제작 지원", end="2026-12-10", posted="2026-11-06")])
+        ledger = json.loads((self.state / "ledger.json").read_text(encoding="utf-8"))
+        self.assertEqual(ledger["grant_kocca:K1"]["alias_of"], "grant_bizinfo:P1")
+
     def test_unchanged_item_under_review_is_not_listed_again(self):
         self.day("2026-11-05", bids=[fx.bid("B1", "홍보 애니메이션")])
         shown(self.out, "2026-11-05", ["bid:B1"])

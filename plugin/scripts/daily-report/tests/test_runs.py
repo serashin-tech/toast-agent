@@ -139,6 +139,30 @@ class StepResults(ReportCase):
         (line,) = [json.loads(x) for x in (runs / "runs.jsonl").read_text(encoding="utf-8").splitlines()]
         self.assertEqual(line["steps"], {"sheet": False, "board": True})
 
+    def test_review_step_goes_to_the_review_line(self):  # 재리뷰 (a)4
+        runs = self.tmp / "runs"
+        self.put_today()
+        self.build(runs=runs, now=clock(at(10, 0), at(10, 1)))
+        argv = ["build", "--date", "2026-11-05", "--results", str(self.results), "--out", str(self.out),
+                "--runs", str(runs), "--routine", "review"]
+        with contextlib.redirect_stdout(io.StringIO()):
+            main(argv, now=clock(at(14, 0), at(14, 1)))
+            main(["record-step", "--runs", str(runs), "--date", "2026-11-05", "--step", "board", "--ok", "false",
+                  "--routine", "review"])
+        daily, review = [json.loads(x) for x in (runs / "runs.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.assertNotIn("steps", daily)
+        self.assertEqual(review["steps"], {"board": False})
+
+    def test_result_warnings_are_counted_on_the_run_line(self):  # 재리뷰 (a)1
+        runs = self.tmp / "runs"
+
+        def mutate(d):
+            d["warnings"] = ["ledger.json을 읽지 못함", "노출 기록을 읽지 못함"]
+        self.put_today(mutate)
+        self.build(runs=runs, now=clock(at(10, 0), at(10, 1)))
+        (line,) = [json.loads(x) for x in (runs / "runs.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(line["warnings"], 2)
+
     def test_unreadable_result_file_is_counted_in_shown_record(self):
         runs = self.tmp / "runs"
         self.put_today()

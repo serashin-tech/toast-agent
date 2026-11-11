@@ -56,12 +56,16 @@ def _summarize(result_path, input_path):
         print(f"요약을 합치지 못했습니다({type(e).__name__}). 요약 없이 이어 갑니다.")
         return 1
     bids = {it["id"]: it for it in result.get("items") or [] if it.get("kind") == "bid"}
-    unknown = sorted(k for k in summaries if k not in bids)
+    applied, skipped = 0, []
     for k, text in summaries.items():
         if k in bids and isinstance(text, str) and text.strip():
             bids[k]["summary"] = text.strip()[:SUMMARY_MAX]
+            applied += 1
+        else:
+            skipped.append(str(k))
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"요약 {len(summaries) - len(unknown)}건을 넣었습니다." + (f" 결과에 없는 공고번호: {', '.join(unknown)}" if unknown else ""))
+    print(f"요약 {applied}건을 넣었습니다."
+          + (f" 넣지 않은 번호(입찰공고가 아니거나 비어 있음): {', '.join(sorted(skipped))}" if skipped else ""))
     return 0
 
 

@@ -40,6 +40,11 @@ class Summarize(unittest.TestCase):
         self.assertEqual(len(s["B2"]), 120)
         self.assertIn("X9", out)  # 결과에 없는 공고번호는 건너뛰고 알린다
 
+    def test_count_reports_only_applied_summaries(self):  # 재리뷰 (c)4
+        code, out, _ = self.summarize({"B1": "요약", "B2": "  ", "O1": "외주"})
+        self.assertIn("요약 1건", out)
+        self.assertIn("O1", out)
+
     def test_bad_input_changes_nothing(self):
         before = self.result.read_text(encoding="utf-8")
         code, _, _ = self.summarize("{broken")
