@@ -1,5 +1,6 @@
 """실행 기록(runs.jsonl)과 11시 도착률. 날짜마다 한 줄이 기본이고, 같은 날 다시 실행하면 줄이 더 붙는다."""
 import json
+import os
 import pathlib
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -101,6 +102,46 @@ def record_publish(runs_dir, date_s, at_iso, ok, deadline=DEADLINE, results_dir=
         if unreadable:
             records[idx]["shown_unreadable"] = unreadable
     _save(runs_dir, records)
+
+
+LOCK_NAME, LOCK_MAX_AGE = "routine.lock", timedelta(minutes=60)
+
+
+def acquire_lock(runs_dir, owner, now):
+    """(성공 여부, 안내). 잠금 파일을 원자적으로 만든다. 60분이 지난 잠금은 끝나지 못한 실행으로 보고 넘겨받는다."""
+    path = pathlib.Path(runs_dir) / LOCK_NAME
+    path.parent.mkdir(parents=True, exist_ok=True)
+    note = ""
+    if path.exists():
+        try:
+            held = json.loads(path.read_text(encoding="utf-8"))
+            age = now - datetime.fromisoformat(held["at"])
+        except (OSError, ValueError, KeyError, TypeError):
+            held, age = {"owner": "알 수 없음"}, LOCK_MAX_AGE
+        if age < LOCK_MAX_AGE:
+            return False, f"잠금 중: {held.get('owner')} 루틴이 {held.get('at')}부터 실행 중입니다"
+        path.unlink(missing_ok=True)
+        note = f"오래된 잠금({held.get('owner')})을 넘겨받았습니다. "
+    try:
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return False, "잠금 중: 다른 루틴이 방금 시작했습니다"
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump({"owner": owner, "at": now.isoformat()}, f)
+    return True, note + f"잠금을 잡았습니다({owner})"
+
+
+def release_lock(runs_dir, owner):
+    """자기 잠금만 지운다. 다른 루틴의 잠금이면 그대로 둔다."""
+    path = pathlib.Path(runs_dir) / LOCK_NAME
+    try:
+        held = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if held.get("owner") != owner:
+        return False
+    path.unlink(missing_ok=True)
+    return True
 
 
 def _d(v):

@@ -4,9 +4,9 @@
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** resolved (2026-11-11)
 
 출처: 2026-11-10 코드 리뷰(표준·명세 두 축)
 
-- [ ] daily-routine 스킬 시작·끝에 잠금
-- [ ] review-requests와 같은 파일 이름
+- [x] daily-routine 스킬 시작·끝에 잠금
+- [x] review-requests와 같은 파일 이름

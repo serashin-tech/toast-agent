@@ -5,6 +5,7 @@ description: 토스트 정부사업 에이전트의 매일 10:00 무인 루틴. 
 
 작업 폴더(Cowork에 연결한 폴더)에서 아래 순서대로 실행한다. 오늘 날짜(한국 시간, YYYY-MM-DD)를 TODAY라고 부른다. 한 단계가 실패해도 다음 단계로 이어 가고, **10:50까지 끝나지 않는 단계는 기다리지 않는다**(D5). 명령 앞부분은 `python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/gov.py"`(GOV), `python -X utf8 "${CLAUDE_PLUGIN_ROOT}/scripts/report.py"`(REPORT)로 줄여 적는다.
 
+0. 잠금: `REPORT lock acquire --runs runs --owner daily`. 검토 루틴이 잡고 있으면(종료 코드 1) 1분 간격으로 다시 시도하되 10:20이 지나면 잠금 없이 이어 간다. 끝(7번)에서 `REPORT lock release --runs runs --owner daily`를 꼭 실행한다.
 1. 수집
    - 먼저 시트 상태를 받는다: `REPORT sheet-pull --out reports/sheet-before-TODAY.json`. 실패해도 이어 간다.
    - `GOV run --date TODAY --out results --sheet-rows reports/sheet-before-TODAY.json` (시트를 못 받았으면 `--sheet-rows`를 뺀다). 검토를 요청한 입찰공고의 내용이 바뀌었으면 다시 실린다(D18).

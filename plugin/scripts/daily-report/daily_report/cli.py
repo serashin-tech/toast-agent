@@ -106,6 +106,10 @@ def main(argv=None, now=None, transport=None):
     bd.add_argument("--date", required=True)
     bd.add_argument("--sheet", required=True, help="Apps Script GET 응답을 저장한 JSON 파일({rows: [...]})")
     bd.add_argument("--out", required=True)
+    lk = sub.add_parser("lock", help="daily·review 루틴이 함께 쓰는 잠금(티켓 23). 잡지 못하면 1을 돌려준다")
+    lk.add_argument("action", choices=["acquire", "release"])
+    lk.add_argument("--runs", required=True)
+    lk.add_argument("--owner", required=True, choices=["daily", "review"])
     st = sub.add_parser("record-step", help="메일 밖 단계(sheet, board 등)의 성패를 그날 daily 줄에 남긴다(티켓 22)")
     st.add_argument("--runs", required=True)
     st.add_argument("--date", required=True)
@@ -146,6 +150,13 @@ def main(argv=None, now=None, transport=None):
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text, encoding="utf-8")
         return 0
+    if args.cmd == "lock":
+        if args.action == "release":
+            print("잠금을 풀었습니다" if runs.release_lock(args.runs, args.owner) else "풀 잠금이 없습니다")
+            return 0
+        ok, note = runs.acquire_lock(args.runs, args.owner, now())
+        print(note)
+        return 0 if ok else 1
     if args.cmd == "record-step":
         runs.record_step(args.runs, args.date, args.step, args.ok == "true")
         return 0
