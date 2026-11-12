@@ -19,10 +19,11 @@
 - `plugin/scripts/`: `gov.py`, `report.py`(진입점), `gov-agent/`, `daily-report/`, `market-agent/`, `settings-template/`, `fixtures/`
 - `plugin/tests/`: 훅, 결과 계약, 리허설 시험
 - `apps-script/`: 시트에 붙일 Apps Script 원본(시트 기록, 메일 발송, 마감 지난 행 정리)
+- `installer/`: 대표 PC에 작업 폴더를 만드는 설치 파일(`install.bat`)과 설치 안내서, 설정 초기값(D37)
 
 ## 지킬 것
 
-- 운영 데이터(`.env`, `settings/`, `results/`, `reports/`, `runs/`, `state/`, `drafts/`)는 대표 PC 작업 폴더에만 둔다. 저장소에 넣지 않는다.
+- 운영 데이터(`.env`, `settings/`, `results/`, `reports/`, `runs/`, `state/`, `drafts/`)는 대표 PC 작업 폴더에만 둔다. 저장소에 넣지 않는다. 예외는 설치 초기값 `installer/settings/`뿐이다(D37).
 - 코드의 기본 경로는 현재 폴더(작업 폴더) 기준이다. 코드 위치에서 경로를 계산하지 않는다.
 - 판정은 코드가 하고 Claude는 추출만 한다. 근거 문장이 없으면 확인필요다.
 - 스킬·에이전트 본문의 경로는 `${CLAUDE_PLUGIN_ROOT}/…`로 적는다.

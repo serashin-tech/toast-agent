@@ -1,0 +1,2 @@
+# 대표가 GitHub ZIP으로 받아도 cmd가 읽도록 CRLF 그대로 둔다
+installer/*.bat -text

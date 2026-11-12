@@ -23,8 +23,9 @@ toast-agent/                          저장소 루트 = 마켓플레이스 `toa
 ├── README.md                         설치 절차(대표 PC)
 ├── .env.example                      작업 폴더 .env의 항목
 ├── apps-script/                      시트에 붙이는 Code.gs와 설치·확인 절차
+├── installer/                        대표 PC 설치: install.bat(작업 폴더·.env 생성), README_install.md, settings/(초기값, D37)
 ├── docs/
-│   ├── decisions.md                  결정 D1~D36, 요구사항 IM, 리스크 R, 질문 Q
+│   ├── decisions.md                  결정 D1~D37, 요구사항 IM, 리스크 R, 질문 Q
 │   ├── result-format.md              gov-agent → daily-report 결과 파일 계약
 │   ├── adr/0001~0003                 되돌리기 어려운 결정
 │   ├── agents/                       이슈 트래커·라벨·도메인 문서 규칙
@@ -61,7 +62,7 @@ toast-agent/                          저장소 루트 = 마켓플레이스 `toa
 └── drafts/<공고번호>/                 첨부, 텍스트, 추출 JSON, eligibility·brief, 데모 산출물
 ```
 
-`settings/`와 `.env` 말고는 첫 실행 때 코드가 만든다. 운영 데이터는 저장소에 넣지 않는다. 고객 폴더 `07_Implementation`은 11/12 시연 뒤 이 구조로 정리한다(H16-1).
+`settings/`와 `.env`는 `installer/install.bat`이 만들고(D37), 나머지는 첫 실행 때 코드가 만든다. 운영 데이터는 저장소에 넣지 않는다. 예외인 `installer/settings/`는 설치 때만 쓰는 초기값이며, 설치 뒤 정본은 작업 폴더의 `settings/`다. 고객 폴더 `07_Implementation`은 11/12 시연 뒤 이 구조로 정리한다(H16-1).
 
 ## 3. 실행 흐름
 
@@ -113,7 +114,7 @@ state/ ────────┘                                              
 | 운영 절차 | `plugin/skills/*/SKILL.md` | 대표용 설명서 `plugin/scripts/daily-report/daily_report/manual.html`(사업 현황판 탭 포함) |
 | 불변 규칙 | `plugin/rules/invariants.md` | 세션 시작 훅이 대화에 넣음 |
 | 용어 | `CONTEXT.md` | |
-| 설정 값과 변경 이력 | 작업 폴더 `settings/*.md` | `state/last_good_settings/`(수집용 2종), 설명서의 관리자 설정 탭(게시 시점 스냅샷) |
+| 설정 값과 변경 이력 | 작업 폴더 `settings/*.md` | `state/last_good_settings/`(수집용 2종), 설명서의 관리자 설정 탭(게시 시점 스냅샷), `installer/settings/`(설치 초기값, D37) |
 | 보여 준 항목(노출 판정) | 로컬 원장 `state/` | 시트 '수집 이력'(마감 전 행만) |
 | 공고별 처리 기록 | 시트 상태 칸·대표 메모 + `drafts/<공고번호>/`(D24) | 마감 뒤에는 '지난 공고' 탭(D29). Claude 세션은 기록이 아님 |
 | 검토 상태 화면 | 시트 '수집 이력' | 사업 현황판 artifact(최대 30분 늦음) |
