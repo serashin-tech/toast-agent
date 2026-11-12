@@ -4,6 +4,7 @@
 대표 메모를 싣지 않는다. 시트 주소는 싣는다(시트 권한이 있는 계정만 열 수 있음, 2026-11-12 sera.shin 지시).
 """
 import pathlib
+import re
 
 from .inputs import parse_date
 from .render import SECTIONS, SOON_DAYS, days_left, dday, esc, failures, link, won
@@ -139,6 +140,21 @@ def _due(r, run_date):
     return f"{esc(r['deadline'])} ({dday((r['_d'] - run_date).days)})" if r["_d"] else "마감일 없음"
 
 
+PICK = ("신규", "2차 검토 요청", "데모 요청", "보류", "관련 없음")  # 대표가 고르는 상태(D26·D32·D34). 나머지는 에이전트가 쓴다
+KIND = {"bid": "입찰", "grant": "지원"}
+
+
+def _pick(r, run_date):
+    """상태 선택 목록(D38). 설명서의 스크립트가 보는 사람의 Google Sheets 커넥터를 확인한 뒤에 켜고,
+    고르면 시트의 상태 칸에 바로 저장한다. 에이전트가 쓴 값('2차 완료(권고)' 등)은 그대로 선택돼 보인다."""
+    s = r.get("status") or "신규"
+    opts = "".join(f'<option value="{esc(o)}"{" selected" if o == s else ""}>{esc(o)}</option>'
+                   for o in (PICK if s in PICK else (s,) + PICK))
+    return (f'<select class="inp bstatus" data-key="{esc(r.get("key") or "")}" data-memo="{"1" if _watched_memo(r) else ""}" '
+            f'data-deadline="{esc(r["_d"] or "")}" data-due="{_due(r, run_date)}" data-kind="{KIND.get(r.get("kind"), "")}" '
+            f'data-agency="{esc(r.get("agency") or "")}" aria-label="상태: {esc(r.get("title") or "")}" disabled>{opts}</select>')
+
+
 def _bid_tab(bids, run_date):
     """입찰공고를 상태별로 묶는다. 검토 중인 상태가 맨 위, 같은 상태 안에서는 마감이 가까운 순."""
     if not bids:
@@ -148,7 +164,7 @@ def _bid_tab(bids, run_date):
         groups.setdefault(r.get("status") or "신규", []).append(r)
     return "".join(
         f"<h3>{esc(status)} {len(rs)}건</h3><ul>"
-        + "".join(f'<li>{link(r.get("title"), r.get("url"))}<br><span class="m">{esc(r.get("agency") or "")}'
+        + "".join(f'<li>{_pick(r, run_date)} {link(r.get("title"), r.get("url"))}<br><span class="m">{esc(r.get("agency") or "")}'
                   f" · 마감 {_due(r, run_date)}</span></li>" for r in rs)
         + "</ul>" for status, rs in groups.items())
 
@@ -166,7 +182,7 @@ def _grant_tab(grants, run_date):
     for r in sorted(grants, key=lambda r: (r["_d"] is None, r["_d"] or run_date)):
         reg = parse_date(r.get("registered")) if r.get("registered") else None
         trs.append(f'<tr data-deadline="{esc(r["_d"] or "")}" data-registered="{esc(reg or "")}" data-status="{esc(r.get("status") or "신규")}" '
-                   f'data-agency="{esc(r.get("agency") or "")}"><td>{esc(r.get("status") or "신규")}</td><td>{link(r.get("title"), r.get("url"))}</td>'
+                   f'data-agency="{esc(r.get("agency") or "")}"><td>{_pick(r, run_date)}</td><td>{link(r.get("title"), r.get("url"))}</td>'
                    f'<td>{esc(r.get("agency") or "")}</td><td>{esc(reg or "")}</td><td>{_due(r, run_date)}</td></tr>')
     sort_th = lambda key, name, order: (f'<th aria-sort="{order}"><button class="sortbtn" type="button" data-sort="{key}">'
                                         f'{name}<span class="si" aria-hidden="true"></span></button></th>')
@@ -190,17 +206,17 @@ def _watched(r):
 
 
 def _watch_tab(rows, run_date):
-    """마감 전 관심사업(입찰·지원) 표. 마감이 가까운 순. 메모는 있는지만 보이고 내용은 싣지 않는다."""
-    if not rows:
-        return "<p>마감 전인 관심사업이 없습니다. 시트에서 상태를 바꾸거나 메모를 남긴 사업이 여기에 모입니다.</p>"
-    kind = {"bid": "입찰", "grant": "지원"}
+    """마감 전 관심사업(입찰·지원) 표. 마감이 가까운 순. 메모는 있는지만 보이고 내용은 싣지 않는다.
+    표는 비어 있어도 둔다: 현황판에서 상태를 고르면 스크립트가 이 표에 행을 넣고 뺀다(D38)."""
     trs = "".join(
-        f'<tr><td>{esc(r.get("status") or "신규")}</td><td>{_due(r, run_date)}</td><td>{link(r.get("title"), r.get("url"))}</td>'
-        f'<td>{kind[r["kind"]]}</td><td>{esc(r.get("agency") or "")}</td><td>{"메모 있음" if _watched_memo(r) else ""}</td></tr>'
+        f'<tr data-key="{esc(r.get("key") or "")}"><td>{_pick(r, run_date)}</td><td>{_due(r, run_date)}</td><td>{link(r.get("title"), r.get("url"))}</td>'
+        f'<td>{KIND[r["kind"]]}</td><td>{esc(r.get("agency") or "")}</td><td>{"메모 있음" if _watched_memo(r) else ""}</td></tr>'
         for r in sorted(rows, key=lambda r: (r["_d"] is None, r["_d"] or run_date)))
-    return ('<p class="small" style="padding:12px 18px 0;margin:0">시트에서 상태를 바꾸거나 메모를 남긴 마감 전 사업. 메모 내용은 시트에서 확인.</p>'
+    none = ('<tr class="bf-none"' + (" hidden" if rows else "") + '><td colspan="6">마감 전인 관심사업이 없습니다. '
+            "상태를 바꾸거나 메모를 남긴 사업이 여기에 모입니다.</td></tr>")
+    return ('<p class="small" style="padding:12px 18px 0;margin:0">상태를 바꾸거나 메모를 남긴 마감 전 사업. 메모 내용은 시트에서 확인.</p>'
             '<div class="scroll"><table class="tbl board-tbl"><thead><tr><th>상태</th><th>마감일</th><th>사업명</th><th>종류</th><th>기관</th><th>메모</th></tr></thead>'
-            f"<tbody>{trs}</tbody></table></div>")
+            f"<tbody>{trs}{none}</tbody></table></div>")
 
 
 def _watched_memo(r):
@@ -214,13 +230,16 @@ def render_board(run_date, rows, sheet_url=None):
     sheet = (f"수집 이력 시트: {link('시트 열기', sheet_url)} (권한이 있는 Google 계정으로만 열림). "
              "마감이 지난 기존 기록은 시트의 '지난 공고' 탭에서 확인." if sheet_url
              else "수집 이력 시트 주소가 설정되지 않았습니다(작업 폴더 .env의 SHEET_URL).")
+    m = re.search(r"/spreadsheets/d/([^/?#]+)", sheet_url or "")
+    sheet_id = f' data-sheet-id="{esc(m.group(1))}"' if m else ""  # 시트 주소에 이미 보이는 값이고 토큰이 아니다(D30)
     tab = lambda k, name, n, on: (f'<button class="subtab" role="tab" type="button" id="bt-{k}" aria-controls="bp-{k}" '
                                   f'aria-selected="{"true" if on else "false"}">{name} <span class="n">{n}</span></button>')
     panel = ("<!--board-start--><section><h2>사업 현황판</h2>"
              f'<p class="sub">{run_date.isoformat()} 기준 · 마감 전 입찰사업 {len(bids)}건 · 지원사업 {len(grants)}건 · 관심사업 {len(watch)}건. '
-             "10시 루틴과 30분 검토 루틴이 시트를 읽어 다시 게시함(시트에서 바꾼 상태는 최대 30분 늦게 보임).</p>"
-             f'<p class="sub">{sheet}</p></section>'
-             '<section class="subwrap"><div class="subtabs" role="tablist" aria-label="사업 종류">'
+             "10시 루틴과 30분 검토 루틴이 시트를 읽어 다시 게시함(시트에서 바꾼 상태는 최대 30분 늦게 보임). "
+             "상태 칸에서 고르면 시트에 바로 저장되고, '신규'·'관련 없음'이 아니면 관심사업에 들어감(Google Sheets 커넥터 필요).</p>"
+             f'<p class="sub">{sheet}</p><p class="sub" id="bsave" role="status" aria-live="polite"></p></section>'
+             f'<section class="subwrap"{sheet_id}><div class="subtabs" role="tablist" aria-label="사업 종류">'
              + tab("bid", "입찰사업", len(bids), True) + tab("grant", "지원사업", len(grants), False)
              + tab("watch", "관심사업", len(watch), False) + "</div>"
              f'<div class="setcard blist" role="tabpanel" id="bp-bid" aria-labelledby="bt-bid">{_bid_tab(bids, run_date)}</div><!--bp-bid-->'

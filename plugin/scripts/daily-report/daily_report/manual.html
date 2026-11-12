@@ -297,6 +297,8 @@ select.inp { flex: 0 0 auto; }
 .board-tbl .bf-none td, .grant-tbl .bf-none td { font-weight: 400; white-space: normal; color: var(--muted); }
 .grant-tbl td:nth-child(4), .grant-tbl td:nth-child(5) { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .grant-tbl td:nth-child(2) { min-width: 220px; }
+select.bstatus { flex: none; font-size: 13px; padding: 3px 6px; max-width: 100%; }
+select.bstatus:disabled { opacity: 1; color: var(--ink); cursor: default; }
 .sortbtn { font: inherit; font-weight: 600; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
 .sortbtn .si::after { content: "↕"; color: var(--muted); font-size: 12px; }
 th[aria-sort="ascending"] .si::after { content: "↑"; color: var(--primary-text); }
@@ -318,7 +320,7 @@ th[aria-sort="descending"] .si::after { content: "↓"; color: var(--primary-tex
     <h1>토스트 에이전트</h1>
     <p class="lead">매일 아침 정부사업 공고를 모아 11시까지 대표 메일로 보내고, 검토할 입찰공고를 정리하는 Claude 플러그인</p>
     <div class="meta">
-      <span class="tag">플러그인 <code>toast-agent</code> 0.3.6</span>
+      <span class="tag">플러그인 <code>toast-agent</code> 0.3.7</span>
       <span class="tag">GitHub <code>serashin-tech/toast-agent</code> (비공개)</span>
       <span class="tag">2026-11-11 기준</span>
     </div>
@@ -578,7 +580,7 @@ th[aria-sort="descending"] .si::after { content: "↓"; color: var(--primary-tex
     <div class="duty">
       <div><span class="t">매일 11:00</span><h3>메일 확인</h3><p>오늘 새로 올라온 입찰공고, 지원사업, 외주 글을 메일로 받음. 절마다 마감이 가까운 순이고, 7일 안에 마감되는 공고에는 '마감 임박'이 붙음. 수집하지 못한 곳과 최근 설정 변경은 맨 위에 보이고, 메일의 링크로 현황판과 시트에 바로 들어감.</p></div>
       <div><span class="t">필요할 때</span><h3>시트에서 상태 바꾸기</h3><p>검토할 공고의 상태 칸을 '2차 검토 요청'으로 바꿈. 결과는 메일로 옴.</p></div>
-      <div><span class="t">필요할 때</span><h3>사업 현황판 보기</h3><p>입찰사업과 지원사업의 상태를 이 설명서의 첫 탭에서 봄. 지원사업은 날짜로 거를 수 있고, 시트에서 상태를 바꾸거나 메모를 남긴 사업은 마감 전까지 관심사업 탭에 모임. 시트에서 바꾼 상태는 최대 30분 늦게 반영됨.</p></div>
+      <div><span class="t">필요할 때</span><h3>사업 현황판 보기</h3><p>입찰사업과 지원사업의 상태를 이 설명서의 첫 탭에서 봄. 상태 칸에서 값을 고르면 시트에 바로 저장되고, '신규'·'관련 없음'이 아니면 관심사업 탭에 들어감(claude.ai에 Google Sheets 커넥터 연결 필요). 지원사업은 날짜로 거를 수 있고, 메모를 남긴 사업도 마감 전까지 관심사업 탭에 모임. 시트에서 직접 바꾼 상태는 최대 30분 늦게 반영됨.</p></div>
     </div>
   </section>
 
@@ -1074,6 +1076,94 @@ th[aria-sort="descending"] .si::after { content: "↓"; color: var(--primary-tex
         grows.forEach(function (tr) { gbody.insertBefore(tr, gnone); });
       });
     });
+  }
+
+  // 상태 저장(D38): 상태 칸에서 고르면 보는 사람의 Google Sheets 커넥터로 수집 이력 시트의 상태 칸을 바로 고친다.
+  // 열 위치는 apps-script/Code.gs의 COLS 순서를 따른다(키=A, 상태=L). 저장이 끝나면 관심사업 표에 행을 넣거나 뺀다.
+  // ponytail: 키로 행을 찾은 뒤 쓰기까지 두 번 호출하므로, 그 사이에 정리 트리거가 행을 옮기면 다른 행에 쓸 수 있다. 쓰기 전 키를 다시 확인해 좁혔다.
+  var bwrap = document.querySelector('#board [data-sheet-id]');
+  var picks = Array.prototype.slice.call(document.querySelectorAll('#board select.bstatus'));
+  var SERVER = 'Google Sheets', TAB = "'수집 이력'!", mcp = null;
+  function bsay(msg) { var m = document.getElementById('bsave'); if (m) m.textContent = msg; }
+  function same(key) { return picks.filter(function (p) { return p.dataset.key === key; }); }
+  function watched(st, memo) { return st !== '관련 없음' && (st !== '신규' || memo); }
+  function wrefresh() {
+    var rows = document.querySelectorAll('#bp-watch tbody tr[data-key]');
+    document.querySelector('#bt-watch .n').textContent = rows.length;
+    document.querySelector('#bp-watch .bf-none').hidden = rows.length > 0;
+  }
+  function wrow(sel, st) {
+    // 원래 행(입찰 목록의 li 또는 지원사업 표의 tr)에서 사업명 링크를 가져와 관심사업 행을 만든다
+    var tr = document.createElement('tr'), src = sel.closest('li, tr'), pick = sel.cloneNode(true);
+    tr.dataset.key = sel.dataset.key;
+    pick.value = st; pick.dataset.prev = st; pick.addEventListener('change', function () { save(pick); });
+    picks.push(pick);
+    var cells = [pick, sel.dataset.due, src.querySelector('a').cloneNode(true), sel.dataset.kind, sel.dataset.agency, sel.dataset.memo ? '메모 있음' : ''];
+    cells.forEach(function (c) { var td = document.createElement('td'); if (typeof c === 'string') td.textContent = c; else td.appendChild(c); tr.appendChild(td); });
+    var body = document.querySelector('#bp-watch tbody'), d = sel.dataset.deadline, before = body.querySelector('.bf-none');
+    Array.prototype.some.call(body.querySelectorAll('tr[data-key]'), function (r) {
+      var rd = r.querySelector('select').dataset.deadline;
+      if (d && (!rd || d < rd)) { before = r; return true; }
+      return false;
+    });
+    body.insertBefore(tr, before);
+  }
+  function apply(sel, st) {
+    var key = sel.dataset.key;
+    same(key).forEach(function (p) { p.value = st; p.dataset.prev = st; var g = p.closest('tr[data-status]'); if (g) g.dataset.status = st; });
+    var row = Array.prototype.find.call(document.querySelectorAll('#bp-watch tbody tr[data-key]'), function (r) { return r.dataset.key === key; });
+    var on = watched(st, sel.dataset.memo === '1');
+    if (on && !row) wrow(sel, st);
+    if (!on && row) { picks = picks.filter(function (p) { return !row.contains(p); }); row.remove(); }
+    wrefresh();
+    return on;
+  }
+  function why(e, wrote) {
+    var c = e && e.code;
+    if (c === 'needs_reauth') return 'Google Sheets 연결이 끊겼습니다. claude.ai 설정 › 커넥터에서 다시 연결한 뒤 다시 골라 주세요.';
+    if (c === 'server_not_connected' || c === 'server_not_found') return 'Google Sheets 커넥터가 연결돼 있지 않습니다. claude.ai 설정 › 커넥터에서 추가한 뒤 다시 골라 주세요.';
+    if (c === 'selection_required') return 'Google Sheets 연결이 여러 개입니다. 뜨는 창에서 하나를 고른 뒤 다시 골라 주세요.';
+    if (c === 'not_in_manifest' || c === 'approval_required' || c === 'consent_required' || c === 'not_granted') return '이 현황판이 Google Sheets를 쓰도록 허용해야 저장됩니다. 다시 고르면 허용 창이 뜹니다.';
+    if (c === 'blocked_by_policy') return '조직 정책이 이 현황판의 시트 저장을 막았습니다. 시트에서 직접 바꿔 주세요.';
+    if (c === 'tool_error') return '시트가 저장을 거부했습니다(편집 권한을 확인해 주세요): ' + (e.message || '');
+    if (wrote) return '저장됐는지 확실하지 않습니다. 시트에서 상태 칸을 확인해 주세요.';
+    return '저장하지 못했습니다(' + (c || '알 수 없는 오류') + '). 잠시 뒤 다시 골라 주세요.';
+  }
+  async function keyRow(id, key) {
+    var got = await mcp.callTool(SERVER, 'get_values', { spreadsheetId: id, range: TAB + 'A:A' }, { cache: false });
+    var vals = (got.payload && got.payload.values) || [];
+    for (var i = 1; i < vals.length; i++) if (vals[i] && vals[i][0] === key) return i + 1;
+    return 0;
+  }
+  async function save(sel) {
+    var key = sel.dataset.key, st = sel.value, prev = sel.dataset.prev, id = bwrap.dataset.sheetId, wrote = false;
+    if (st === prev) return;
+    same(key).forEach(function (p) { p.disabled = true; });
+    bsay('저장 중: ' + st);
+    try {
+      var row = await keyRow(id, key);
+      if (!row) { same(key).forEach(function (p) { p.value = prev; }); bsay('시트에서 이 사업을 찾지 못해 저장하지 않았습니다. 마감이 지나 옮겨졌을 수 있습니다.'); return; }
+      var check = await mcp.callTool(SERVER, 'get_values', { spreadsheetId: id, range: TAB + 'A' + row }, { cache: false });
+      var v = check.payload && check.payload.values;
+      if (!v || !v[0] || v[0][0] !== key) { same(key).forEach(function (p) { p.value = prev; }); bsay('시트의 행이 방금 바뀌어 저장하지 않았습니다. 다시 골라 주세요.'); return; }
+      wrote = true;
+      await mcp.callTool(SERVER, 'update_values', { spreadsheetId: id, range: TAB + 'L' + row, values: [[st]] }, { cache: false });
+      bsay('저장했습니다: ' + st + (apply(sel, st) ? ' · 관심사업에 있음' : ' · 관심사업에서 빠짐'));
+    } catch (e) {
+      same(key).forEach(function (p) { p.value = prev; });
+      bsay(why(e, wrote));
+    } finally {
+      same(key).forEach(function (p) { p.disabled = false; });
+    }
+  }
+  if (picks.length) {
+    picks.forEach(function (p) { p.dataset.prev = p.value; p.addEventListener('change', function () { save(p); }); });
+    var noSave = '이 화면에서는 상태를 저장할 수 없습니다. 시트에서 바꿔 주세요.';
+    if (!bwrap || !window.claude || !window.claude.use) bsay(noSave);
+    else window.claude.use('mcp').then(function (m) {
+      if (!m) { bsay(noSave); return; }
+      mcp = m; picks.forEach(function (p) { p.disabled = false; });
+    }, function () { bsay(noSave); });
   }
 
   // 복사 단추

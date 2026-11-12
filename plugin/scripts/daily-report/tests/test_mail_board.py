@@ -140,8 +140,8 @@ class BusinessBoard(ReportCase):
         self.assertIn("캐릭터 개발", bid)  # 마감일 당일은 남는다
         self.assertNotIn("마감 지난 공고", bid)
         self.assertNotIn("지원사업 행", bid)
-        self.assertLess(bid.index("2차 검토 중"), bid.index("신규"))
-        self.assertLess(bid.index("데모 요청"), bid.index("신규"))
+        self.assertLess(bid.index("<h3>2차 검토 중"), bid.index("<h3>신규"))  # 묶음 제목 순서(선택 목록의 값과 구분)
+        self.assertLess(bid.index("<h3>데모 요청"), bid.index("<h3>신규"))
 
     def test_grant_tab_is_a_date_filterable_table(self):
         grant = self.part(self.board(), 'id="bp-grant"', "</div><!--bp-grant-->")
@@ -198,6 +198,28 @@ class BusinessBoard(ReportCase):
         html = self.board()
         self.assertIn("홍보 애니메이션 &lt;제작&gt;", html)
         self.assertNotIn("대표 메모 비공개", html)
+
+    def test_status_is_a_picklist_keyed_to_the_sheet_row(self):  # 현황판에서 상태 저장(2026-11-12 sera.shin 지시, D38)
+        html = self.board()
+        grant = self.part(html, 'id="bp-grant"', "</div><!--bp-grant-->")
+        pick = self.part(grant, 'data-key="grant_bizinfo:B1"', "</select>")
+        for status in ("신규", "2차 검토 요청", "데모 요청", "보류", "관련 없음"):
+            self.assertIn(f'<option value="{status}"', pick)
+        self.assertIn('<option value="보류" selected>', pick)
+        bid = self.part(html, 'id="bp-bid"', "</div><!--bp-bid-->")
+        self.assertIn('<option value="2차 검토 중" selected>', self.part(bid, 'data-key="bid:R1"', "</select>"))
+        watch = self.part(html, 'id="bp-watch"', "</div><!--bp-watch-->")
+        self.assertIn('data-key="bid:R4"', watch)
+
+    def test_board_names_the_sheet_to_save_to_but_not_the_token(self):
+        panel = self.panel(self.board())
+        self.assertIn('data-sheet-id="sheet-1"', panel)
+        self.assertNotIn("data-sheet-id", self.panel(self.board(env="")))  # 시트가 없으면 저장하지 않는다
+
+    def test_unknown_status_stays_selected(self):  # '2차 완료(권고)'처럼 에이전트가 쓴 값은 그대로 보인다
+        rows = [{"key": "bid:R9", "kind": "bid", "title": "권고 공고", "agency": "전주시", "deadline": "2026-11-20",
+                 "url": "https://g2b.test/R9", "status": "2차 완료(권고)"}]
+        self.assertIn('<option value="2차 완료(권고)" selected>', self.panel(self.board(rows=rows)))
 
     def test_empty_board_says_no_open_bids_or_grants(self):
         panel = self.panel(self.board(rows=[]))

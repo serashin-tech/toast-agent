@@ -21,7 +21,7 @@ description: 토스트 정부사업 에이전트의 매일 10:00 무인 루틴. 
    - 메일 발송에 성공했을 때만 `--ok true`다. 성공한 날에만 노출 기록이 남고, 11시 도착은 이것으로 센다(D31).
 6. 사업 현황판(설명서의 첫 탭)
    - `REPORT sheet-pull --out reports/sheet-TODAY.json` 후 `REPORT board --date TODAY --sheet reports/sheet-TODAY.json --out reports/board.html` (설명서 전체에 오늘 시트의 입찰사업·지원사업을 채운 HTML. 시트 주소는 코드가 `.env`에서 읽는다)
-   - Artifact 도구로 `reports/board.html`을 게시한다. **capabilities는 선언하지 않는다.** `reports/artifact-url.txt`가 있으면 그 주소를 url로 넘겨 같은 주소에 다시 게시하고, 없으면 새로 게시한 뒤(icon은 board) 받은 주소를 그 파일에 한 줄로 저장한다.
+   - Artifact 도구로 `reports/board.html`을 게시한다. `reports/artifact-url.txt`가 있으면 그 주소를 url로 넘겨 같은 주소에 다시 게시하고, **capabilities는 넘기지 않는다**(넘기지 않아야 상태 저장 권한이 유지된다). 파일이 없을 때만 새로 게시하며(icon은 board), 이때 capabilities를 `{"mcp": {"servers": [{"server": "Google Sheets", "tools": ["get_values", "update_values"]}]}}`로 선언하고 받은 주소를 그 파일에 한 줄로 저장한다(D38).
    - 게시 결과를 `REPORT record-step --runs runs --date TODAY --step board --ok true|false`로 남긴다. 현황판 결과는 11시 도착 판정에 쓰지 않는다(D31).
 7. 끝. 한 줄로 보고한다: 성공한 소스와 실패한 소스(사유 종류), 시트 기록, 메일 발송, 현황판 게시 결과.
 
